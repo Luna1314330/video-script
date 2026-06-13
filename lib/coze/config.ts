@@ -1,12 +1,17 @@
 import type { CozeWorkflowConfig } from '@/lib/types'
 
+/** 运行时读取，避免构建阶段把空值内联进产物 */
+function readEnv(key: string): string {
+  return process.env[key]?.trim() ?? ''
+}
+
 export function getCozeConfigFromEnv(): CozeWorkflowConfig {
   return {
-    apiToken: process.env.COZE_API_TOKEN || '',
-    baseUrl: process.env.COZE_BASE_URL || 'https://api.coze.cn',
+    apiToken: readEnv('COZE_API_TOKEN'),
+    baseUrl: readEnv('COZE_BASE_URL') || 'https://api.coze.cn',
     workflowIds: {
-      contentStrategy: process.env.COZE_WORKFLOW_CONTENT_STRATEGY || '',
-      script: process.env.COZE_WORKFLOW_SCRIPT || '',
+      contentStrategy: readEnv('COZE_WORKFLOW_CONTENT_STRATEGY'),
+      script: readEnv('COZE_WORKFLOW_SCRIPT'),
     },
   }
 }
@@ -24,7 +29,7 @@ export function assertCozeConfigured(
 ): void {
   if (!config.apiToken) {
     throw new Error(
-      '未配置 COZE_API_TOKEN，请在 Netlify 环境变量或本地 .env.local 中设置'
+      '未配置 COZE_API_TOKEN。请在 Netlify → Site configuration → Environment variables 添加，Scope 勾选 Builds 和 Functions，保存后重新部署。'
     )
   }
 

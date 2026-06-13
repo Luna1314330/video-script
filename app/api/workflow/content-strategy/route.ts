@@ -4,6 +4,8 @@ import { buildContentStrategyParameters } from '@/lib/coze/parameters'
 import { normalizeContentStrategyResponse } from '@/lib/strategy/parse'
 import type { BasicInput } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
