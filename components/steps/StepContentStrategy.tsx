@@ -17,7 +17,6 @@ export function StepContentStrategy() {
     basicInput,
     contentStrategy,
     selectedTopic,
-    cozeConfig,
     loadingStep,
     strategyProgressPhase,
     error,
@@ -63,7 +62,7 @@ export function StepContentStrategy() {
       const res = await fetch('/api/workflow/content-strategy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basicInput, cozeConfig }),
+        body: JSON.stringify({ basicInput }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -80,7 +79,6 @@ export function StepContentStrategy() {
     }
   }, [
     basicInput,
-    cozeConfig,
     setContentStrategy,
     setSelectedTopic,
     setLoadingStep,

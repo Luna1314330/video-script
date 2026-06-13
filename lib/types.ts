@@ -188,15 +188,6 @@ export interface CozeWorkflowConfig {
   }
 }
 
-export const DEFAULT_COZE_CONFIG: CozeWorkflowConfig = {
-  apiToken: '',
-  baseUrl: 'https://api.coze.cn',
-  workflowIds: {
-    contentStrategy: '',
-    script: '',
-  },
-}
-
 export interface AppState {
   currentStep: number
   basicInput: BasicInput
@@ -206,7 +197,6 @@ export interface AppState {
   script: GeneratedScript | null
   strategyProgressPhase: number
   scriptProgressPhase: number
-  cozeConfig: CozeWorkflowConfig
   loadingStep: number | null
   error: string | null
 }

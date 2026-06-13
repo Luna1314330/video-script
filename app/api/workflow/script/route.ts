@@ -1,10 +1,9 @@
-import { assertCozeConfigured, getCozeConfigFromEnv, mergeCozeConfig } from '@/lib/coze/config'
+import { assertCozeConfigured, getCozeConfigFromEnv } from '@/lib/coze/config'
 import { runCozeWorkflow } from '@/lib/coze/client'
 import { buildScriptWorkflowParameters } from '@/lib/coze/parameters'
 import { normalizeScriptResponse } from '@/lib/script/parse'
 import {
   BasicInput,
-  CozeWorkflowConfig,
   ContentStrategyResult,
   DEFAULT_PLATFORM_ID,
   PlatformId,
@@ -18,17 +17,16 @@ export async function POST(request: Request) {
       contentStrategy: ContentStrategyResult
       selectedTopic: StrategyTopicItem
       platformId?: PlatformId
-      cozeConfig?: CozeWorkflowConfig
     }
 
-    const { basicInput, selectedTopic, cozeConfig } = body
+    const { basicInput, selectedTopic } = body
     const platformId = body.platformId ?? DEFAULT_PLATFORM_ID
 
     if (!selectedTopic) {
       return Response.json({ error: '请选择选题' }, { status: 400 })
     }
 
-    const config = mergeCozeConfig(cozeConfig, getCozeConfigFromEnv())
+    const config = getCozeConfigFromEnv()
     assertCozeConfigured(config, 'script')
 
     const raw = await runCozeWorkflow<unknown>({

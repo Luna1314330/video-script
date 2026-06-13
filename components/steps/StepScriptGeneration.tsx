@@ -23,7 +23,6 @@ export function StepScriptGeneration() {
     contentStrategy,
     selectedTopic,
     script,
-    cozeConfig,
     loadingStep,
     scriptProgressPhase,
     error,
@@ -71,7 +70,6 @@ export function StepScriptGeneration() {
           contentStrategy,
           selectedTopic,
           platformId: DEFAULT_PLATFORM_ID,
-          cozeConfig,
         }),
       })
       const data = await res.json()
@@ -91,7 +89,6 @@ export function StepScriptGeneration() {
     basicInput,
     contentStrategy,
     selectedTopic,
-    cozeConfig,
     setScript,
     setLoadingStep,
     setError,

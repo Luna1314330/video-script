@@ -4,12 +4,11 @@ import type {
   AppState,
   BasicInput,
   ContentStrategyResult,
-  CozeWorkflowConfig,
   GeneratedScript,
   PlatformId,
   StrategyTopicItem,
 } from './types'
-import { DEFAULT_COZE_CONFIG, TOTAL_STEPS } from './types'
+import { TOTAL_STEPS } from './types'
 
 const initialBasicInput: BasicInput = {
   industry: '',
@@ -28,7 +27,6 @@ interface AppActions {
   setScript: (script: GeneratedScript | null) => void
   setStrategyProgressPhase: (phase: number) => void
   setScriptProgressPhase: (phase: number) => void
-  setCozeConfig: (config: Partial<CozeWorkflowConfig>) => void
   setLoadingStep: (step: number | null) => void
   setError: (error: string | null) => void
   reset: () => void
@@ -43,14 +41,13 @@ const initialState: AppState = {
   script: null,
   strategyProgressPhase: 0,
   scriptProgressPhase: 0,
-  cozeConfig: DEFAULT_COZE_CONFIG,
   loadingStep: null,
   error: null,
 }
 
 export const useAppStore = create<AppState & AppActions>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
       setStep: (step) => set({ currentStep: step }),
@@ -82,31 +79,15 @@ export const useAppStore = create<AppState & AppActions>()(
 
       setScriptProgressPhase: (phase) => set({ scriptProgressPhase: phase }),
 
-      setCozeConfig: (config) =>
-        set((state) => ({
-          cozeConfig: {
-            ...state.cozeConfig,
-            ...config,
-            workflowIds: {
-              ...state.cozeConfig.workflowIds,
-              ...config.workflowIds,
-            },
-          },
-        })),
-
       setLoadingStep: (step) => set({ loadingStep: step }),
 
       setError: (error) => set({ error }),
 
-      reset: () =>
-        set({
-          ...initialState,
-          cozeConfig: get().cozeConfig,
-        }),
+      reset: () => set(initialState),
     }),
     {
       name: 'script-workflow-storage',
-      partialize: (state) => ({ cozeConfig: state.cozeConfig }),
+      partialize: () => ({}),
     }
   )
 )

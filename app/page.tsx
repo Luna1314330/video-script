@@ -1,6 +1,5 @@
 'use client'
 
-import { CozeSettings } from '@/components/CozeSettings'
 import { StepIndicator } from '@/components/StepIndicator'
 import { StepContentStrategy } from '@/components/steps/StepContentStrategy'
 import { StepIndustryProduct } from '@/components/steps/StepIndustryProduct'
@@ -13,17 +12,22 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       <div className="border-b border-border/60 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl">
-          <button
-            type="button"
-            onClick={reset}
-            className="text-left rounded-lg -ml-2 px-2 py-1 transition-colors hover:bg-muted/50"
-            title="回到首页并重新开始"
-          >
-            <h1 className="font-heading text-xl text-foreground tracking-tight">脚本工坊</h1>
-            <p className="text-[11px] text-muted-foreground mt-0.5">短视频内容策略 · 脚本生成</p>
-          </button>
-          <CozeSettings />
+        <div className="container mx-auto px-4 py-4 max-w-5xl">
+          <div className="max-w-6xl mx-auto w-full">
+            <div>
+              <button
+                type="button"
+                onClick={reset}
+                className="font-heading text-xl text-foreground tracking-tight cursor-pointer hover-nudge"
+                title="回到首页并重新开始"
+              >
+                脚本工坊
+              </button>
+              <p className="text-[11px] text-muted-foreground mt-0.5 pointer-events-none">
+                短视频内容策略 · 脚本生成
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
