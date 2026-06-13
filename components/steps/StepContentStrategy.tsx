@@ -7,6 +7,7 @@ import { GenerationErrorPanel } from '@/components/GenerationErrorPanel'
 import { StrategyProgress } from '@/components/StrategyProgress'
 import { StrategyResults } from '@/components/StrategyResults'
 import { StepHeader, StepNav } from '@/components/StepLayout'
+import { pollWorkflowApi } from '@/lib/workflow/poll-api'
 import { useAppStore } from '@/lib/store'
 import { STRATEGY_PROGRESS_PHASES, type ContentStrategyResult } from '@/lib/types'
 
@@ -59,17 +60,16 @@ export function StepContentStrategy() {
     startProgressTimer()
 
     try {
-      const res = await fetch('/api/workflow/content-strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basicInput }),
+      const contentStrategy = await pollWorkflowApi<ContentStrategyResult>({
+        url: '/api/workflow/content-strategy',
+        startBody: { basicInput },
+        pollBody: () => ({}),
+        resultKey: 'contentStrategy',
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
 
       stopProgressTimer()
       setStrategyProgressPhase(STRATEGY_PROGRESS_PHASES.length)
-      setContentStrategy(data.contentStrategy as ContentStrategyResult)
+      setContentStrategy(contentStrategy)
     } catch (err) {
       stopProgressTimer()
       const msg = err instanceof Error ? err.message : '生成失败'

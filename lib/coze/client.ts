@@ -24,6 +24,18 @@ interface CozeRunHistoryItem {
   error_message?: string
 }
 
+export type CozeExecuteStatus = 'Running' | 'Success' | 'Fail'
+
+export interface CozePollResult {
+  status: CozeExecuteStatus
+  output?: unknown
+  error?: string
+}
+
+export type CozeStartResult =
+  | { executeId: string }
+  | { immediate: unknown }
+
 const OUTPUT_KEYS = [
   'Output',
   'output',
@@ -155,50 +167,13 @@ async function cozeFetch<T>(
   return (await response.json()) as T
 }
 
-async function pollWorkflowResult(
-  config: CozeWorkflowConfig,
-  workflowId: string,
-  executeId: string
-): Promise<unknown> {
-  const started = Date.now()
-
-  while (Date.now() - started < POLL_MAX_MS) {
-    const result = await cozeFetch<CozeWorkflowResponse>(
-      config,
-      `/v1/workflows/${workflowId}/run_histories/${executeId}`
-    )
-
-    assertCozeOk(result)
-
-    const history = (result.data as CozeRunHistoryItem[] | undefined)?.[0]
-    if (!history) {
-      throw new Error('Coze 未返回工作流执行记录')
-    }
-
-    const status = history.execute_status ?? ''
-    if (status === 'Success') {
-      return history.output ?? ''
-    }
-
-    if (status === 'Fail') {
-      throw new Error(history.error_message || 'Coze 工作流执行失败')
-    }
-
-    await sleep(POLL_INTERVAL_MS)
-  }
-
-  throw new Error('Coze 工作流执行超时，请稍后重试')
-}
-
-/**
- * 调用 Coze 工作流 API（默认异步执行并轮询结果，避免长耗时超时）
- */
-export async function runCozeWorkflow<T>({
+/** 启动异步 Coze 工作流，返回 executeId 或同步结果 */
+export async function startCozeWorkflow({
   config,
   workflowId,
   parameters,
   async: useAsync = true,
-}: RunWorkflowOptions): Promise<T> {
+}: RunWorkflowOptions): Promise<CozeStartResult> {
   const result = await cozeFetch<CozeWorkflowResponse>(config, '/v1/workflow/run', {
     method: 'POST',
     body: JSON.stringify({
@@ -210,22 +185,104 @@ export async function runCozeWorkflow<T>({
 
   assertCozeOk(result)
 
-  if (useAsync) {
-    const executeId = extractExecuteId(result)
-
-    if (executeId) {
-      const output = await pollWorkflowResult(config, workflowId, executeId)
-      return unwrapCozePayload(output) as T
-    }
-
-    if (hasDirectWorkflowOutput(result)) {
-      return unwrapCozePayload(result) as T
-    }
-
-    throw new Error(
-      `Coze 工作流未返回 execute_id 或有效结果${result.msg ? `：${result.msg}` : ''}`
-    )
+  if (!useAsync) {
+    return { immediate: unwrapCozePayload(result) }
   }
 
-  return unwrapCozePayload(result) as T
+  const executeId = extractExecuteId(result)
+  if (executeId) {
+    return { executeId }
+  }
+
+  if (hasDirectWorkflowOutput(result)) {
+    return { immediate: unwrapCozePayload(result) }
+  }
+
+  throw new Error(
+    `Coze 工作流未返回 execute_id 或有效结果${result.msg ? `：${result.msg}` : ''}`
+  )
+}
+
+/** 单次查询 Coze 工作流执行状态（适合 serverless 短超时场景） */
+export async function pollCozeWorkflowOnce({
+  config,
+  workflowId,
+  executeId,
+}: {
+  config: CozeWorkflowConfig
+  workflowId: string
+  executeId: string
+}): Promise<CozePollResult> {
+  const result = await cozeFetch<CozeWorkflowResponse>(
+    config,
+    `/v1/workflows/${workflowId}/run_histories/${executeId}`
+  )
+
+  assertCozeOk(result)
+
+  const history = (result.data as CozeRunHistoryItem[] | undefined)?.[0]
+  if (!history) {
+    throw new Error('Coze 未返回工作流执行记录')
+  }
+
+  const status = (history.execute_status ?? 'Running') as CozeExecuteStatus
+
+  if (status === 'Success') {
+    return {
+      status,
+      output: unwrapCozePayload(history.output ?? ''),
+    }
+  }
+
+  if (status === 'Fail') {
+    return {
+      status,
+      error: history.error_message || 'Coze 工作流执行失败',
+    }
+  }
+
+  return { status: 'Running' }
+}
+
+async function pollWorkflowResult(
+  config: CozeWorkflowConfig,
+  workflowId: string,
+  executeId: string
+): Promise<unknown> {
+  const started = Date.now()
+
+  while (Date.now() - started < POLL_MAX_MS) {
+    const poll = await pollCozeWorkflowOnce({ config, workflowId, executeId })
+
+    if (poll.status === 'Success') {
+      return poll.output ?? ''
+    }
+
+    if (poll.status === 'Fail') {
+      throw new Error(poll.error || 'Coze 工作流执行失败')
+    }
+
+    await sleep(POLL_INTERVAL_MS)
+  }
+
+  throw new Error('Coze 工作流执行超时，请稍后重试')
+}
+
+/**
+ * 调用 Coze 工作流 API（服务端长轮询，本地开发可用；Netlify 等请用 start + pollCozeWorkflowOnce）
+ */
+export async function runCozeWorkflow<T>({
+  config,
+  workflowId,
+  parameters,
+  async: useAsync = true,
+}: RunWorkflowOptions): Promise<T> {
+  const start = await startCozeWorkflow({ config, workflowId, parameters, async: useAsync })
+
+  if ('immediate' in start) {
+    return start.immediate as T
+  }
+
+  const output = await pollWorkflowResult(config, workflowId, start.executeId)
+  return output as T
 }

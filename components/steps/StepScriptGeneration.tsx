@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { GenerationErrorPanel } from '@/components/GenerationErrorPanel'
 import { ResultCard, StepHeader } from '@/components/StepLayout'
 import { WorkflowProgress } from '@/components/WorkflowProgress'
+import { pollWorkflowApi } from '@/lib/workflow/poll-api'
 import { useAppStore } from '@/lib/store'
 import {
   DEFAULT_PLATFORM_ID,
@@ -62,22 +63,24 @@ export function StepScriptGeneration() {
     startProgressTimer()
 
     try {
-      const res = await fetch('/api/workflow/script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const generatedScript = await pollWorkflowApi<GeneratedScript>({
+        url: '/api/workflow/script',
+        startBody: {
           basicInput,
           contentStrategy,
           selectedTopic,
           platformId: DEFAULT_PLATFORM_ID,
+        },
+        pollBody: () => ({
+          selectedTopic,
+          platformId: DEFAULT_PLATFORM_ID,
         }),
+        resultKey: 'script',
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
 
       stopProgressTimer()
       setScriptProgressPhase(SCRIPT_PROGRESS_PHASES.length)
-      setScript(data.script as GeneratedScript)
+      setScript(generatedScript)
     } catch (err) {
       stopProgressTimer()
       const msg = err instanceof Error ? err.message : '生成失败'

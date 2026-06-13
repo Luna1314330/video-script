@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata } from 'next'
 import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google'
 import { Toaster } from 'sonner'
@@ -40,7 +39,6 @@ export default function RootLayout({
             },
           }}
         />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
