@@ -37,14 +37,17 @@ export function isCozeConfigured(
   return Boolean(config.apiToken && config.workflowIds[workflowKey])
 }
 
-/** 默认使用模拟数据；仅在 .env.local 设置 USE_MOCK_DATA=false 时走 Coze */
-export function shouldUseCozeLive(): boolean {
-  return process.env.USE_MOCK_DATA === 'false'
-}
-
-export function shouldCallCoze(
+export function assertCozeConfigured(
   config: CozeWorkflowConfig,
   workflowKey: keyof CozeWorkflowConfig['workflowIds']
-): boolean {
-  return shouldUseCozeLive() && isCozeConfigured(config, workflowKey)
+): void {
+  if (!isCozeConfigured(config, workflowKey)) {
+    const labels: Record<keyof CozeWorkflowConfig['workflowIds'], string> = {
+      contentStrategy: '内容策略',
+      script: '脚本生成',
+    }
+    throw new Error(
+      `未配置 Coze ${labels[workflowKey]}工作流，请在「Coze 配置」或 .env.local 中填写 API Token 与工作流 ID`
+    )
+  }
 }

@@ -131,12 +131,10 @@ export function CozeSettings() {
               <div className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground leading-relaxed space-y-2">
                 <p className="font-medium text-foreground/70">环境变量（可选）</p>
                 <p>
-                  也可在 <code className="bg-muted px-1 rounded">.env.local</code> 中配置，优先级与下方表单合并。
-                  设置 <code className="bg-muted px-1 rounded">USE_MOCK_DATA=true</code> 可切回静态演示数据。
+                  也可在 <code className="bg-muted px-1 rounded">.env.local</code> 中配置，会与下方表单合并使用。
                 </p>
                 <pre className="text-[10px] bg-muted p-2 rounded overflow-x-auto">
-                  {`USE_MOCK_DATA=false
-COZE_API_TOKEN=
+                  {`COZE_API_TOKEN=
 COZE_WORKFLOW_CONTENT_STRATEGY=
 COZE_WORKFLOW_SCRIPT=`}
                 </pre>

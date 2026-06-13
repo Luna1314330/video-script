@@ -1,7 +1,6 @@
-import { getCozeConfigFromEnv, mergeCozeConfig, shouldCallCoze } from '@/lib/coze/config'
+import { assertCozeConfigured, getCozeConfigFromEnv, mergeCozeConfig } from '@/lib/coze/config'
 import { runCozeWorkflow } from '@/lib/coze/client'
 import { buildScriptWorkflowParameters } from '@/lib/coze/parameters'
-import { generateMockScript } from '@/lib/mock/generators'
 import { normalizeScriptResponse } from '@/lib/script/parse'
 import {
   BasicInput,
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
       cozeConfig?: CozeWorkflowConfig
     }
 
-    const { basicInput, contentStrategy, selectedTopic, cozeConfig } = body
+    const { basicInput, selectedTopic, cozeConfig } = body
     const platformId = body.platformId ?? DEFAULT_PLATFORM_ID
 
     if (!selectedTopic) {
@@ -30,26 +29,21 @@ export async function POST(request: Request) {
     }
 
     const config = mergeCozeConfig(cozeConfig, getCozeConfigFromEnv())
+    assertCozeConfigured(config, 'script')
 
-    if (shouldCallCoze(config, 'script')) {
-      const raw = await runCozeWorkflow<unknown>({
-        config,
-        workflowId: config.workflowIds.script,
-        parameters: buildScriptWorkflowParameters(basicInput, selectedTopic),
-      })
+    const raw = await runCozeWorkflow<unknown>({
+      config,
+      workflowId: config.workflowIds.script,
+      parameters: buildScriptWorkflowParameters(basicInput, selectedTopic),
+    })
 
-      try {
-        const script = normalizeScriptResponse(raw, selectedTopic, platformId)
-        return Response.json({ script, source: 'coze' })
-      } catch (parseError) {
-        console.error('Coze script raw response:', JSON.stringify(raw).slice(0, 2000))
-        throw parseError
-      }
+    try {
+      const script = normalizeScriptResponse(raw, selectedTopic, platformId)
+      return Response.json({ script, source: 'coze' })
+    } catch (parseError) {
+      console.error('Coze script raw response:', JSON.stringify(raw).slice(0, 2000))
+      throw parseError
     }
-
-    await new Promise((r) => setTimeout(r, 1200))
-    const script = generateMockScript(basicInput, selectedTopic, platformId)
-    return Response.json({ script, source: 'mock' })
   } catch (error) {
     console.error('Generate script error:', error)
     return Response.json(

@@ -1,7 +1,6 @@
-import { getCozeConfigFromEnv, mergeCozeConfig, shouldCallCoze } from '@/lib/coze/config'
+import { assertCozeConfigured, getCozeConfigFromEnv, mergeCozeConfig } from '@/lib/coze/config'
 import { runCozeWorkflow } from '@/lib/coze/client'
 import { buildContentStrategyParameters } from '@/lib/coze/parameters'
-import { generateMockContentStrategy } from '@/lib/mock/generators'
 import { normalizeContentStrategyResponse } from '@/lib/strategy/parse'
 import type { BasicInput, CozeWorkflowConfig } from '@/lib/types'
 
@@ -19,25 +18,21 @@ export async function POST(request: Request) {
     }
 
     const config = mergeCozeConfig(cozeConfig, getCozeConfigFromEnv())
+    assertCozeConfigured(config, 'contentStrategy')
 
-    if (shouldCallCoze(config, 'contentStrategy')) {
-      const raw = await runCozeWorkflow<unknown>({
-        config,
-        workflowId: config.workflowIds.contentStrategy,
-        parameters: buildContentStrategyParameters(basicInput),
-      })
-      try {
-        const contentStrategy = normalizeContentStrategyResponse(raw)
-        return Response.json({ contentStrategy, source: 'coze' })
-      } catch (parseError) {
-        console.error('Coze raw response:', JSON.stringify(raw).slice(0, 2000))
-        throw parseError
-      }
+    const raw = await runCozeWorkflow<unknown>({
+      config,
+      workflowId: config.workflowIds.contentStrategy,
+      parameters: buildContentStrategyParameters(basicInput),
+    })
+
+    try {
+      const contentStrategy = normalizeContentStrategyResponse(raw)
+      return Response.json({ contentStrategy, source: 'coze' })
+    } catch (parseError) {
+      console.error('Coze raw response:', JSON.stringify(raw).slice(0, 2000))
+      throw parseError
     }
-
-    await new Promise((r) => setTimeout(r, 2500))
-    const contentStrategy = generateMockContentStrategy(basicInput)
-    return Response.json({ contentStrategy, source: 'mock' })
   } catch (error) {
     console.error('Content strategy error:', error)
     return Response.json(
