@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const config = getCozeConfigFromEnv()
-    assertCozeConfigured(config, 'contentStrategy')
+    assertCozeConfigured(config)
     const workflowId = config.workflowIds.contentStrategy
 
     if (body.executeId) {

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const config = getCozeConfigFromEnv()
-    assertCozeConfigured(config, 'script')
+    assertCozeConfigured(config)
     const workflowId = config.workflowIds.script
     const platformId = body.platformId ?? DEFAULT_PLATFORM_ID
 
