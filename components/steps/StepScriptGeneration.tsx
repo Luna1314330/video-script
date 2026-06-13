@@ -117,7 +117,7 @@ export function StepScriptGeneration() {
     <div className="animate-fade-in max-w-3xl mx-auto">
       <StepHeader
         title="生成脚本"
-        description="根据选定选题，自动生成短视频脚本。"
+        description="根据选定选题，生成短视频脚本。"
       />
 
       {selectedTopic && (
