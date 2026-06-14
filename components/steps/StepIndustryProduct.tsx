@@ -14,6 +14,7 @@ export function StepIndustryProduct() {
     setScript,
     setStrategyProgressPhase,
     setScriptProgressPhase,
+    setError,
     nextStep,
   } = useAppStore()
 
@@ -25,6 +26,7 @@ export function StepIndustryProduct() {
     setScript(null)
     setStrategyProgressPhase(0)
     setScriptProgressPhase(0)
+    setError(null)
     nextStep()
   }
 

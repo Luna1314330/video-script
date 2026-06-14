@@ -7,15 +7,22 @@ import { GenerationErrorPanel } from '@/components/GenerationErrorPanel'
 import { StrategyProgress } from '@/components/StrategyProgress'
 import { StrategyResults } from '@/components/StrategyResults'
 import { StepHeader, StepNav } from '@/components/StepLayout'
+import { isStrategyStale } from '@/lib/basic-input'
 import { pollWorkflowApi } from '@/lib/workflow/poll-api'
 import { useAppStore } from '@/lib/store'
 import { STRATEGY_PROGRESS_PHASES, type ContentStrategyResult } from '@/lib/types'
 
 const PHASE_INTERVAL_MS = 1200
 
+const autoStrategyGenerationLock = {
+  inputKey: '',
+  running: false,
+}
+
 export function StepContentStrategy() {
   const {
     basicInput,
+    strategySourceInput,
     contentStrategy,
     selectedTopic,
     loadingStep,
@@ -52,7 +59,18 @@ export function StepContentStrategy() {
     }, PHASE_INTERVAL_MS)
   }, [setStrategyProgressPhase, stopProgressTimer])
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (trigger: 'auto' | 'manual' = 'manual') => {
+    const { basicInput: latestInput } = useAppStore.getState()
+    const inputKey = `${latestInput.industry}|${latestInput.product}|${latestInput.productDescription}`
+
+    if (trigger === 'auto') {
+      if (autoStrategyGenerationLock.running && autoStrategyGenerationLock.inputKey === inputKey) {
+        return
+      }
+      autoStrategyGenerationLock.inputKey = inputKey
+      autoStrategyGenerationLock.running = true
+    }
+
     setLoadingStep(2)
     setError(null)
     setContentStrategy(null)
@@ -60,25 +78,27 @@ export function StepContentStrategy() {
     startProgressTimer()
 
     try {
-      const contentStrategy = await pollWorkflowApi<ContentStrategyResult>({
+      const result = await pollWorkflowApi<ContentStrategyResult>({
         url: '/api/workflow/content-strategy',
-        startBody: { basicInput },
+        startBody: { basicInput: latestInput },
         pollBody: () => ({}),
         resultKey: 'contentStrategy',
       })
 
       stopProgressTimer()
       setStrategyProgressPhase(STRATEGY_PROGRESS_PHASES.length)
-      setContentStrategy(contentStrategy)
+      setContentStrategy(result)
     } catch (err) {
       stopProgressTimer()
       const msg = err instanceof Error ? err.message : '生成失败'
       setError(msg)
     } finally {
+      if (trigger === 'auto') {
+        autoStrategyGenerationLock.running = false
+      }
       setLoadingStep(null)
     }
   }, [
-    basicInput,
     setContentStrategy,
     setSelectedTopic,
     setLoadingStep,
@@ -88,12 +108,25 @@ export function StepContentStrategy() {
     setStrategyProgressPhase,
   ])
 
+  const inputKey = `${basicInput.industry}|${basicInput.product}|${basicInput.productDescription}`
+  const stale = isStrategyStale(basicInput, strategySourceInput)
+
   useEffect(() => {
-    if (!contentStrategy) {
-      generate()
-    }
+    if (!basicInput.industry.trim() || !basicInput.product.trim()) return
+    if (loadingStep === 2) return
+    if (contentStrategy && !stale) return
+    void generate('auto')
     return () => stopProgressTimer()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    inputKey,
+    stale,
+    contentStrategy,
+    loadingStep,
+    basicInput.industry,
+    basicInput.product,
+    generate,
+    stopProgressTimer,
+  ])
 
   const loading = loadingStep === 2
   const showProgress = loading
@@ -111,16 +144,16 @@ export function StepContentStrategy() {
       )}
 
       {showRetry && (
-        <GenerationErrorPanel onRetry={generate} detail={error} />
+        <GenerationErrorPanel onRetry={() => void generate('manual')} detail={error} />
       )}
 
-      {contentStrategy && !loading && (
+      {contentStrategy && !loading && !stale && (
         <div className="mt-8 space-y-6">
           <div className="flex justify-end">
             <Button
               variant="ghost"
               size="sm"
-              onClick={generate}
+              onClick={() => void generate('manual')}
               className="gap-1.5 text-muted-foreground"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -142,7 +175,7 @@ export function StepContentStrategy() {
           setScriptProgressPhase(0)
           nextStep()
         }}
-        nextDisabled={!selectedTopic || loading}
+        nextDisabled={!selectedTopic || loading || stale}
         nextLabel="下一步：生成脚本"
       />
     </div>

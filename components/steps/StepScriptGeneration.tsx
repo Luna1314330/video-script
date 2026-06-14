@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Copy, Check, RefreshCw, RotateCcw } from 'lucide-react'
+import { useCallback, useEffect, useRef } from 'react'
+import { RefreshCw, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GenerationErrorPanel } from '@/components/GenerationErrorPanel'
-import { ResultCard, StepHeader } from '@/components/StepLayout'
+import { ScriptCard } from '@/components/ScriptCard'
+import { StepHeader } from '@/components/StepLayout'
 import { WorkflowProgress } from '@/components/WorkflowProgress'
+import { saveHistoryEntry } from '@/lib/history/storage'
 import { pollWorkflowApi } from '@/lib/workflow/poll-api'
 import { useAppStore } from '@/lib/store'
 import {
@@ -14,9 +16,14 @@ import {
   SCRIPT_PROGRESS_PHASES,
   type GeneratedScript,
 } from '@/lib/types'
-import { toast } from 'sonner'
 
 const PHASE_INTERVAL_MS = 1200
+
+/** 防止 React Strict Mode 下自动触发生成两次 */
+const autoScriptGenerationLock = {
+  topicId: '',
+  running: false,
+}
 
 export function StepScriptGeneration() {
   const {
@@ -55,8 +62,20 @@ export function StepScriptGeneration() {
     }, PHASE_INTERVAL_MS)
   }, [setScriptProgressPhase, stopProgressTimer])
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (trigger: 'auto' | 'manual' = 'manual') => {
     if (!contentStrategy || !selectedTopic) return
+
+    if (trigger === 'auto') {
+      if (
+        autoScriptGenerationLock.running &&
+        autoScriptGenerationLock.topicId === selectedTopic.id
+      ) {
+        return
+      }
+      autoScriptGenerationLock.topicId = selectedTopic.id
+      autoScriptGenerationLock.running = true
+    }
+
     setLoadingStep(3)
     setError(null)
     setScript(null)
@@ -81,11 +100,19 @@ export function StepScriptGeneration() {
       stopProgressTimer()
       setScriptProgressPhase(SCRIPT_PROGRESS_PHASES.length)
       setScript(generatedScript)
+      saveHistoryEntry({
+        basicInput,
+        selectedTopic,
+        script: generatedScript,
+      })
     } catch (err) {
       stopProgressTimer()
       const msg = err instanceof Error ? err.message : '生成失败'
       setError(msg)
     } finally {
+      if (trigger === 'auto') {
+        autoScriptGenerationLock.running = false
+      }
       setLoadingStep(null)
     }
   }, [
@@ -104,7 +131,7 @@ export function StepScriptGeneration() {
     if (!contentStrategy || !selectedTopic) return
     const needsGenerate = !script || script.contentItemId !== selectedTopic.id
     if (needsGenerate) {
-      generate()
+      void generate('auto')
     }
     return () => stopProgressTimer()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -143,7 +170,7 @@ export function StepScriptGeneration() {
       )}
 
       {showRetry && (
-        <GenerationErrorPanel onRetry={generate} detail={error} />
+        <GenerationErrorPanel onRetry={() => void generate('manual')} detail={error} />
       )}
 
       {script && !loading && (
@@ -152,7 +179,7 @@ export function StepScriptGeneration() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={generate}
+              onClick={() => void generate('manual')}
               className="gap-1.5 text-muted-foreground"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -171,97 +198,6 @@ export function StepScriptGeneration() {
           <RotateCcw className="w-3.5 h-3.5" />
           重新开始
         </Button>
-      </div>
-    </div>
-  )
-}
-
-function ScriptCard({ script }: { script: GeneratedScript }) {
-  const [copied, setCopied] = useState(false)
-
-  const formatted = `【${script.title}】
-
-🎬 包装方式：${script.packagingType}
-
-🪝 开头钩子
-${script.hook}
-
-📐 分镜脚本
-${script.sections.map((s) => `${s.timestamp}\n旁白：${s.narration}\n画面：${s.visual}`).join('\n\n')}
-
-✍️ 完整文案
-${script.fullText}
-
-🏷️ 话题标签
-${script.hashtags.join(' ')}
-
-🎯 行动号召
-${script.cta}`
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(formatted)
-    setCopied(true)
-    toast.success('已复制到剪贴板')
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <span className="text-xs px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">
-            {script.packagingType}
-          </span>
-          <h3 className="font-heading text-lg mt-2">{script.title}</h3>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2 shrink-0">
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              已复制
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              复制脚本
-            </>
-          )}
-        </Button>
-      </div>
-
-      <ResultCard title="开头钩子">
-        <p className="font-medium">{script.hook}</p>
-      </ResultCard>
-
-      <ResultCard title="分镜结构">
-        <div className="space-y-4">
-          {script.sections.map((section) => (
-            <div key={section.timestamp} className="border-l-2 border-border pl-4">
-              <span className="text-xs text-muted-foreground">{section.timestamp}</span>
-              <p className="text-sm mt-1">{section.narration}</p>
-              <p className="text-xs text-muted-foreground mt-1">画面：{section.visual}</p>
-            </div>
-          ))}
-        </div>
-      </ResultCard>
-
-      <ResultCard title="完整文案">
-        <p className="whitespace-pre-line">{script.fullText}</p>
-      </ResultCard>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <ResultCard title="话题标签">
-          <div className="flex flex-wrap gap-2">
-            {script.hashtags.map((tag) => (
-              <span key={tag} className="text-xs">
-                {tag}
-              </span>
-            ))}
-          </div>
-        </ResultCard>
-        <ResultCard title="行动号召">
-          <p>{script.cta}</p>
-        </ResultCard>
       </div>
     </div>
   )

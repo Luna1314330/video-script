@@ -1,5 +1,6 @@
 'use client'
 
+import { HistoryPanel } from '@/components/HistoryPanel'
 import { StepIndicator } from '@/components/StepIndicator'
 import { StepContentStrategy } from '@/components/steps/StepContentStrategy'
 import { StepIndustryProduct } from '@/components/steps/StepIndustryProduct'
@@ -13,7 +14,7 @@ export default function Home() {
     <main className="min-h-screen">
       <div className="border-b border-border/60 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 max-w-5xl">
-          <div className="max-w-6xl mx-auto w-full">
+          <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-4">
             <div>
               <button
                 type="button"
@@ -27,6 +28,7 @@ export default function Home() {
                 短视频内容策略 · 脚本生成
               </p>
             </div>
+            <HistoryPanel />
           </div>
         </div>
       </div>

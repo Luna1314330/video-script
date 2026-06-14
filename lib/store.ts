@@ -35,6 +35,7 @@ interface AppActions {
 const initialState: AppState = {
   currentStep: 1,
   basicInput: initialBasicInput,
+  strategySourceInput: null,
   contentStrategy: null,
   selectedTopic: null,
   selectedPlatform: null,
@@ -63,11 +64,40 @@ export const useAppStore = create<AppState & AppActions>()(
         })),
 
       setBasicInput: (input) =>
-        set((state) => ({
-          basicInput: { ...state.basicInput, ...input },
-        })),
+        set((state) => {
+          const basicInput = { ...state.basicInput, ...input }
+          const changed =
+            basicInput.industry !== state.basicInput.industry ||
+            basicInput.product !== state.basicInput.product ||
+            basicInput.productDescription !== state.basicInput.productDescription
 
-      setContentStrategy: (strategy) => set({ contentStrategy: strategy }),
+          if (!changed) {
+            return { basicInput }
+          }
+
+          return {
+            basicInput,
+            strategySourceInput: null,
+            contentStrategy: null,
+            selectedTopic: null,
+            script: null,
+            strategyProgressPhase: 0,
+            scriptProgressPhase: 0,
+            error: null,
+          }
+        }),
+
+      setContentStrategy: (strategy) =>
+        set((state) => ({
+          contentStrategy: strategy,
+          strategySourceInput: strategy
+            ? {
+                industry: state.basicInput.industry,
+                product: state.basicInput.product,
+                productDescription: state.basicInput.productDescription,
+              }
+            : null,
+        })),
 
       setSelectedTopic: (topic) => set({ selectedTopic: topic }),
 

@@ -191,6 +191,8 @@ export interface CozeWorkflowConfig {
 export interface AppState {
   currentStep: number
   basicInput: BasicInput
+  /** 生成 contentStrategy 时使用的行业/产品快照，用于检测输入是否已变更 */
+  strategySourceInput: BasicInput | null
   contentStrategy: ContentStrategyResult | null
   selectedTopic: StrategyTopicItem | null
   selectedPlatform: PlatformId | null
@@ -204,3 +206,12 @@ export interface AppState {
 export const STEP_LABELS = ['行业与产品', '内容策略', '生成脚本'] as const
 
 export const TOTAL_STEPS = STEP_LABELS.length
+
+/** 本机历史记录（localStorage） */
+export interface GenerationHistoryEntry {
+  id: string
+  createdAt: string
+  basicInput: BasicInput
+  selectedTopic: StrategyTopicItem
+  script: GeneratedScript
+}
