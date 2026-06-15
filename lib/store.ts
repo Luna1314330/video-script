@@ -14,6 +14,7 @@ const initialBasicInput: BasicInput = {
   industry: '',
   product: '',
   productDescription: '',
+  scene: '',
 }
 
 interface AppActions {
@@ -69,7 +70,8 @@ export const useAppStore = create<AppState & AppActions>()(
           const changed =
             basicInput.industry !== state.basicInput.industry ||
             basicInput.product !== state.basicInput.product ||
-            basicInput.productDescription !== state.basicInput.productDescription
+            basicInput.productDescription !== state.basicInput.productDescription ||
+            basicInput.scene !== state.basicInput.scene
 
           if (!changed) {
             return { basicInput }
@@ -95,6 +97,7 @@ export const useAppStore = create<AppState & AppActions>()(
                 industry: state.basicInput.industry,
                 product: state.basicInput.product,
                 productDescription: state.basicInput.productDescription,
+                scene: state.basicInput.scene,
               }
             : null,
         })),

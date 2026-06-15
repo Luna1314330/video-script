@@ -125,6 +125,11 @@ export function HistoryPanel() {
                         <span>·</span>
                         <span>{selected.basicInput.product}</span>
                       </div>
+                      {selected.basicInput.scene?.trim() && (
+                        <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed">
+                          拍摄场景：{selected.basicInput.scene.trim()}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span>{selected.selectedTopic.personaTitle}</span>
                         <span>·</span>

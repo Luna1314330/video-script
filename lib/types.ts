@@ -91,6 +91,7 @@ export interface BasicInput {
   industry: string
   product: string
   productDescription: string
+  scene: string
 }
 
 // User persona

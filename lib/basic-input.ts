@@ -5,6 +5,7 @@ export function basicInputKey(input: BasicInput): string {
     input.industry.trim(),
     input.product.trim(),
     input.productDescription.trim(),
+    input.scene.trim(),
   ].join('\u0001')
 }
 

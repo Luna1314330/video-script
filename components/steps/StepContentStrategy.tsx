@@ -61,7 +61,7 @@ export function StepContentStrategy() {
 
   const generate = useCallback(async (trigger: 'auto' | 'manual' = 'manual') => {
     const { basicInput: latestInput } = useAppStore.getState()
-    const inputKey = `${latestInput.industry}|${latestInput.product}|${latestInput.productDescription}`
+    const inputKey = `${latestInput.industry}|${latestInput.product}|${latestInput.productDescription}|${latestInput.scene}`
 
     if (trigger === 'auto') {
       if (autoStrategyGenerationLock.running && autoStrategyGenerationLock.inputKey === inputKey) {
@@ -108,7 +108,7 @@ export function StepContentStrategy() {
     setStrategyProgressPhase,
   ])
 
-  const inputKey = `${basicInput.industry}|${basicInput.product}|${basicInput.productDescription}`
+  const inputKey = `${basicInput.industry}|${basicInput.product}|${basicInput.productDescription}|${basicInput.scene}`
   const stale = isStrategyStale(basicInput, strategySourceInput)
 
   useEffect(() => {

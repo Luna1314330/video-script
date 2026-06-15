@@ -73,6 +73,19 @@ export function StepIndustryProduct() {
             className="min-h-[120px] resize-none"
           />
         </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            本次拍摄场景{' '}
+            <span className="text-muted-foreground text-xs font-normal">选填</span>
+          </label>
+          <Textarea
+            placeholder={`例如：\n- 今天参加行业展会\n- 今天拜访客户\n- 今天去工厂\n- 今天发布新品\n- 今天直播复盘\n- 今天收到用户反馈`}
+            value={basicInput.scene}
+            onChange={(e) => setBasicInput({ scene: e.target.value })}
+            className="min-h-[120px] resize-none"
+          />
+        </div>
       </div>
 
       <StepNav
