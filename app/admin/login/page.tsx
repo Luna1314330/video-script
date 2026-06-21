@@ -1,25 +1,29 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAdminStore } from '@/lib/admin-store'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAdminStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // 检查是否已登录
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('admin_logged_in')
+    if (isLoggedIn === 'true') {
+      router.push('/admin')
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('表单提交触发')
-    console.log('username:', username)
-    console.log('password:', password)
     setError('')
 
     if (!username || !password) {
@@ -28,13 +32,14 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    console.log('开始验证')
     
-    // 等待登录验证完成
-    const success = await login(username, password)
-    console.log('验证结果:', success)
+    // 模拟验证延迟
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    if (success) {
+    // Mock 验证
+    if (username === 'admin' && password === 'admin1991') {
+      localStorage.setItem('admin_logged_in', 'true')
+      localStorage.setItem('admin_user', username)
       router.push('/admin')
     } else {
       setError('用户名或密码错误')
@@ -45,25 +50,18 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
       <div className="w-full max-w-md px-4">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <span className="text-2xl font-bold">S</span>
-          </div>
-          <h1 className="font-heading text-2xl font-bold">脚本工坊</h1>
-          <p className="mt-2 text-sm text-muted-foreground">后台管理系统</p>
-        </div>
-
         <Card>
-          <CardHeader>
-            <CardTitle>管理员登录</CardTitle>
-            <CardDescription>请输入管理员账号密码登录系统</CardDescription>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">脚本工坊</CardTitle>
+            <CardDescription>后台管理系统</CardDescription>
           </CardHeader>
           <CardContent>
+            <p className="mb-4 text-center text-sm text-muted-foreground">
+              管理员登录，请输入管理员账号密码登录系统
+            </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium">
-                  用户名
-                </label>
+                <Label htmlFor="username">用户名</Label>
                 <Input
                   id="username"
                   type="text"
@@ -71,12 +69,12 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
+                  required
                 />
               </div>
+              
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
-                  密码
-                </label>
+                <Label htmlFor="password">密码</Label>
                 <Input
                   id="password"
                   type="password"
@@ -84,11 +82,12 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  required
                 />
               </div>
               
               {error && (
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-sm text-red-500">{error}</p>
               )}
               
               <Button type="submit" className="w-full" disabled={loading}>
@@ -102,9 +101,9 @@ export default function LoginPage() {
       {/* Loading 遮罩 */}
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-xl bg-background p-8 shadow-lg">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="mt-4 text-center font-medium">验证中...</p>
+          <div className="rounded-xl bg-white p-8 shadow-lg">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent" />
+            <p className="mt-4 text-center font-medium text-black">验证中...</p>
           </div>
         </div>
       )}
