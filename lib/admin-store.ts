@@ -14,7 +14,7 @@ interface AdminState {
 // Mock admin credentials
 const ADMIN_CREDENTIALS = {
   username: 'admin',
-  password: 'admin123',
+  password: 'admin1991',
 }
 
 export const useAdminStore = create<AdminState>()(
