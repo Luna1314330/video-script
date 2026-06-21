@@ -90,23 +90,6 @@ export const mockUsers: User[] = [
     createdAt: '2024-01-20 11:00:00',
     lastLoginAt: '2024-03-15 20:30:00',
   },
-  {
-    id: '4',
-    phone: '13800138004',
-    nickname: '赵六',
-    status: 'active',
-    createdAt: '2024-03-01 08:45:00',
-    lastLoginAt: '2024-03-20 10:00:00',
-    membership: { type: 'quarterly', expireAt: '2024-06-01', status: 'active' },
-  },
-  {
-    id: '5',
-    phone: '13800138005',
-    nickname: '钱七',
-    status: 'active',
-    createdAt: '2024-03-18 16:20:00',
-    lastLoginAt: '2024-03-20 09:30:00',
-  },
 ]
 
 // Mock orders
