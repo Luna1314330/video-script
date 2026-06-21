@@ -46,6 +46,23 @@ export default function SettingsPage() {
     }
   }
 
+  const handlePaymentMethodChange = (method: 'wechat' | 'alipay', enabled: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      paymentMethods: {
+        ...prev.paymentMethods,
+        [method]: enabled,
+      },
+    }))
+  }
+
+  const handleSmsNotificationChange = (enabled: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      smsNotification: enabled,
+    }))
+  }
+
   const handleSave = async () => {
     setSaving(true)
     // Simulate API call
@@ -182,6 +199,95 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">
               设置为 0 则不提供免费次数
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Methods */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">支付方式</CardTitle>
+          <CardDescription>选择支持的支付方式</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold">
+                  W
+                </div>
+                <div>
+                  <p className="font-medium">微信支付</p>
+                  <p className="text-xs text-muted-foreground">微信安全支付</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePaymentMethodChange('wechat', !settings.paymentMethods.wechat)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  settings.paymentMethods.wechat ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    settings.paymentMethods.wechat ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">
+                  Z
+                </div>
+                <div>
+                  <p className="font-medium">支付宝</p>
+                  <p className="text-xs text-muted-foreground">支付宝安全支付</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePaymentMethodChange('alipay', !settings.paymentMethods.alipay)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  settings.paymentMethods.alipay ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    settings.paymentMethods.alipay ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">通知设置</CardTitle>
+          <CardDescription>系统通知相关配置</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">短信通知</p>
+              <p className="text-sm text-muted-foreground">会员到期前发送短信提醒</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSmsNotificationChange(!settings.smsNotification)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                settings.smsNotification ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  settings.smsNotification ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </CardContent>
       </Card>

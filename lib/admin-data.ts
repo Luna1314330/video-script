@@ -60,6 +60,11 @@ export interface SystemSettings {
   freeGenerations: {
     daily: number
   }
+  paymentMethods: {
+    wechat: boolean
+    alipay: boolean
+  }
+  smsNotification: boolean
 }
 
 // Mock users
@@ -228,4 +233,9 @@ export const mockSystemSettings: SystemSettings = {
   freeGenerations: {
     daily: 3,
   },
+  paymentMethods: {
+    wechat: true,
+    alipay: false,
+  },
+  smsNotification: true,
 }
