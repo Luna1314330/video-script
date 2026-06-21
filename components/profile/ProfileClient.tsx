@@ -148,9 +148,36 @@ function ChangePassword() {
 
 function ScriptHistory() {
   const scripts = [
-    { id: "1", industry: "餐饮", productName: "麻辣烫", topic: "这碗麻辣烫，让我想起了成都的夜市", createdAt: "2024-03-20 14:30", generatedScript: "【开场】镜头对准热气腾腾的麻辣烫..." },
-    { id: "2", industry: "服装", productName: "连衣裙", topic: "这件裙子，让我秒变气质女神", createdAt: "2024-03-19 10:20", generatedScript: "【开场】走进房间..." },
-    { id: "3", industry: "美妆", productName: "口红", topic: "这支口红，让我爱上了镜中的自己", createdAt: "2024-03-18 16:45", generatedScript: "【特写】手拿口红的画面..." },
+    { 
+      id: "1", 
+      industry: "餐饮", 
+      productName: "麻辣烫", 
+      topic: "这碗麻辣烫，让我想起了成都的夜市", 
+      description: "深夜美食的治愈感",
+      scene: "美食探店",
+      createdAt: "2024-03-20 14:30", 
+      generatedScript: "【开场】镜头对准热气腾腾的麻辣烫..." 
+    },
+    { 
+      id: "2", 
+      industry: "服装", 
+      productName: "连衣裙", 
+      topic: "这件裙子，让我秒变气质女神", 
+      description: "",
+      scene: "",
+      createdAt: "2024-03-19 10:20", 
+      generatedScript: "【开场】走进房间..." 
+    },
+    { 
+      id: "3", 
+      industry: "美妆", 
+      productName: "口红", 
+      topic: "这支口红，让我爱上了镜中的自己", 
+      description: "自信提升",
+      scene: "",
+      createdAt: "2024-03-18 16:45", 
+      generatedScript: "【特写】手拿口红的画面..." 
+    },
   ]
   const [selectedScript, setSelectedScript] = useState<typeof scripts[0] | null>(null)
 
@@ -162,27 +189,53 @@ function ScriptHistory() {
       ) : (
         <div className="space-y-3">
           {scripts.map((script) => (
-            <div key={script.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedScript(script)}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-sm text-gray-500">{script.industry}</span>
-                  <span className="mx-2 text-gray-300">|</span>
-                  <span className="text-sm text-gray-900">{script.productName}</span>
+            <div 
+              key={script.id} 
+              className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+              onClick={() => setSelectedScript(script)}
+            >
+              {/* 第一行：行业 | 产品 | 日期 */}
+              <div className="flex justify-between items-center text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">行业：{script.industry}</span>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-gray-900">产品：{script.productName}</span>
                 </div>
-                <span className="text-xs text-gray-400">{script.createdAt}</span>
+                <span className="text-gray-400">日期：{script.createdAt}</span>
               </div>
-              <p className="mt-2 text-sm text-gray-700">{script.topic}</p>
+              
+              {/* 描述行：没有则不显示 */}
+              {script.description && (
+                <p className="mt-2 text-sm text-gray-600">描述：{script.description}</p>
+              )}
+              
+              {/* 场景行：没有则不显示 */}
+              {script.scene && (
+                <p className="mt-1 text-sm text-gray-600">场景：{script.scene}</p>
+              )}
+              
+              {/* 选题 */}
+              <p className="mt-2 text-sm font-medium text-gray-800">选题：{script.topic}</p>
             </div>
           ))}
         </div>
       )}
       {selectedScript && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedScript(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-medium text-gray-900 mb-2">{selectedScript.topic}</h3>
-            <p className="text-sm text-gray-500 mb-4">{selectedScript.industry} | {selectedScript.productName} | {selectedScript.createdAt}</p>
-            <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm">{selectedScript.generatedScript}</div>
-            <button onClick={() => setSelectedScript(null)} className="mt-4 w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200">关闭</button>
+            <p className="text-sm text-gray-500 mb-4">
+              {selectedScript.industry} | {selectedScript.productName} | {selectedScript.createdAt}
+            </p>
+            <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+              {selectedScript.generatedScript}
+            </div>
+            <button 
+              onClick={() => setSelectedScript(null)} 
+              className="mt-4 w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              关闭
+            </button>
           </div>
         </div>
       )}
