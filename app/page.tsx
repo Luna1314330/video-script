@@ -33,6 +33,9 @@ export default function Home() {
               <Link href="/membership" className="text-sm text-amber-600 font-medium hover:text-amber-700">
                 开通会员
               </Link>
+              <Link href="/profile" className="text-sm text-muted-foreground hover:text-foreground">
+                个人中心
+              </Link>
               <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
                 登录
               </Link>
