@@ -32,9 +32,19 @@
 │   │       ├── content-strategy/
 │   │       └── script/
 │   ├── page.tsx             # 首页
-│   └── layout.tsx
+│   ├── layout.tsx
+│   └── admin/               # 后台管理系统
+│       ├── layout.tsx       # 管理后台布局
+│       ├── page.tsx         # 工作台
+│       ├── login/page.tsx   # 登录页
+│       ├── users/page.tsx   # 用户管理
+│       ├── memberships/page.tsx # 会员管理
+│       ├── orders/page.tsx  # 订单管理
+│       └── settings/page.tsx # 系统设置
 ├── components/              # React 组件
 │   ├── steps/               # 工作流步骤组件
+│   ├── admin/               # 后台管理组件
+│   │   └── AdminLayout.tsx  # 管理后台布局组件
 │   └── ui/                  # shadcn/ui 组件
 ├── lib/                     # 业务逻辑
 │   ├── ai.ts               # AI 调用封装
@@ -42,6 +52,8 @@
 │   ├── decision/            # 决策解析
 │   ├── history/             # 历史记录存储
 │   ├── strategy/           # 策略解析
+│   ├── admin-store.ts      # 后台管理状态
+│   ├── admin-data.ts       # 后台 Mock 数据
 │   └── store.ts            # Zustand store
 └── public/                 # 静态资源
 ```
@@ -56,6 +68,19 @@
 | 状态查询 API | `app/api/config/status/route.ts` | 状态配置查询 |
 | AI 封装 | `lib/ai.ts` | OpenAI / Coze API 调用 |
 | 状态管理 | `lib/store.ts` | Zustand 全局状态 |
+
+### 后台管理系统
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| 登录页 | `app/admin/login/page.tsx` | 管理员登录 |
+| 工作台 | `app/admin/page.tsx` | 数据看板 |
+| 用户管理 | `app/admin/users/page.tsx` | 用户列表、封禁/解封 |
+| 会员管理 | `app/admin/memberships/page.tsx` | 会员列表、手动开通 |
+| 订单管理 | `app/admin/orders/page.tsx` | 订单列表、退款操作 |
+| 系统设置 | `app/admin/settings/page.tsx` | 价格配置、免费次数 |
+| 管理状态 | `lib/admin-store.ts` | Zustand 管理员状态 |
+| Mock 数据 | `lib/admin-data.ts` | 后台管理模拟数据 |
 
 ## 运行与预览
 
