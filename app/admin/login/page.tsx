@@ -7,6 +7,7 @@ import { useAdminStore } from '@/lib/admin-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -31,10 +32,10 @@ export default function LoginPage() {
         router.push('/admin')
       } else {
         toast.error('用户名或密码错误')
+        setLoading(false)
       }
     } catch {
       toast.error('登录失败，请重试')
-    } finally {
       setLoading(false)
     }
   }
@@ -68,6 +69,7 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -81,6 +83,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
+                  disabled={loading}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
@@ -94,6 +97,16 @@ export default function LoginPage() {
           默认账号: admin / admin123
         </p>
       </div>
+
+      {/* Loading 遮罩 */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-xl bg-background p-8 shadow-lg">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-lg font-medium">验证中...</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
