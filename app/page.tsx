@@ -1,15 +1,33 @@
 'use client'
 
-import { HistoryPanel } from '@/components/HistoryPanel'
 import { StepIndicator } from '@/components/StepIndicator'
 import { StepContentStrategy } from '@/components/steps/StepContentStrategy'
 import { StepIndustryProduct } from '@/components/steps/StepIndustryProduct'
 import { StepScriptGeneration } from '@/components/steps/StepScriptGeneration'
 import { useAppStore } from '@/lib/store'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export default function Home() {
   const { currentStep, reset } = useAppStore()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    // 检查登录状态
+    const checkAuth = async () => {
+      try {
+        const { getSupabaseClient } = await import('@/storage/database/supabase-client')
+        const supabase = getSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        setIsLoggedIn(!!session)
+      } catch (e) {
+        setIsLoggedIn(false)
+      }
+    }
+    checkAuth()
+  }, [])
 
   return (
     <main className="min-h-screen">
@@ -33,16 +51,20 @@ export default function Home() {
               <Link href="/membership" className="text-sm text-amber-600 font-medium hover:text-amber-700">
                 开通会员
               </Link>
-              <Link href="/profile" className="text-sm text-muted-foreground hover:text-foreground">
-                个人中心
-              </Link>
-              <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
-                登录
-              </Link>
-              <Link href="/register" className="text-sm bg-foreground text-background px-3 py-1.5 rounded-md hover:opacity-90">
-                注册
-              </Link>
-              <HistoryPanel />
+              {mounted && isLoggedIn ? (
+                <Link href="/profile" className="text-sm text-muted-foreground hover:text-foreground">
+                  个人中心
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+                    登录
+                  </Link>
+                  <Link href="/register" className="text-sm bg-foreground text-background px-3 py-1.5 rounded-md hover:opacity-90">
+                    注册
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
