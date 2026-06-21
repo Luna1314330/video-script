@@ -69,8 +69,16 @@ const defaultMembership = {
   status: "active",
 }
 
+// 菜单项
+const menuItems = [
+  { key: "info", label: "会员信息" },
+  { key: "password", label: "修改密码" },
+  { key: "scripts", label: "历史脚本" },
+  { key: "orders", label: "订单中心" },
+]
+
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<"info" | "password" | "scripts" | "orders">("info")
+  const [activeMenu, setActiveMenu] = useState<"info" | "password" | "scripts" | "orders">("info")
   const [user] = useState(defaultUser)
   const [membership] = useState(defaultMembership)
 
@@ -122,220 +130,210 @@ export default function ProfilePage() {
     }
   }
 
-  const tabs = [
-    { key: "info", label: "会员信息" },
-    { key: "password", label: "修改密码" },
-    { key: "scripts", label: "历史脚本" },
-    { key: "orders", label: "订单中心" },
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 顶部导航 */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-semibold text-gray-900">个人中心</h1>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Tab 切换 */}
-        <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="flex border-b">
-            {tabs.map((tab) => (
+      <div className="flex">
+        {/* 左侧菜单 */}
+        <div className="w-64 bg-white min-h-screen shadow-sm">
+          <div className="p-4 border-b">
+            <h1 className="text-lg font-semibold text-gray-900">个人中心</h1>
+          </div>
+          <nav className="mt-4">
+            {menuItems.map((item) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-                  activeTab === tab.key
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                key={item.key}
+                onClick={() => setActiveMenu(item.key as typeof activeMenu)}
+                className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors ${
+                  activeMenu === item.key
+                    ? "bg-blue-50 text-blue-600 border-r-2 border-blue-600"
+                    : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                {tab.label}
+                {item.label}
               </button>
             ))}
-          </div>
+          </nav>
+        </div>
 
-          <div className="p-6">
-            {/* 会员信息 */}
-            {activeTab === "info" && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">会员信息</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <span className="text-gray-600">手机号</span>
-                    <span className="text-gray-900">{user.phone}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b">
-                    <span className="text-gray-600">会员状态</span>
-                    <span className={`${user.isVip ? "text-red-500" : "text-gray-500"} font-medium`}>
-                      {user.isVip ? "VIP会员" : "普通用户"}
-                    </span>
-                  </div>
-                  {user.isVip && (
-                    <>
-                      <div className="flex items-center justify-between py-3 border-b">
-                        <span className="text-gray-600">会员类型</span>
-                        <span className="text-gray-900">{membership.type}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3 border-b">
-                        <span className="text-gray-600">开通时间</span>
-                        <span className="text-gray-900">{membership.startDate}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3">
-                        <span className="text-gray-600">到期时间</span>
-                        <span className="text-gray-900">{membership.expireDate}</span>
-                      </div>
-                    </>
-                  )}
+        {/* 右侧内容 */}
+        <div className="flex-1 p-8">
+          {/* 会员信息 */}
+          {activeMenu === "info" && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">会员信息</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-3 border-b">
+                  <span className="text-gray-600">手机号</span>
+                  <span className="text-gray-900">{user.phone}</span>
                 </div>
-              </div>
-            )}
-
-            {/* 修改密码 */}
-            {activeTab === "password" && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">修改密码</h3>
-                <div className="space-y-4">
-                  {passwordSuccess && (
-                    <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">
-                      密码修改成功！
+                <div className="flex items-center justify-between py-3 border-b">
+                  <span className="text-gray-600">会员状态</span>
+                  <span className={user.isVip ? "text-red-500 font-medium" : "text-gray-500"}>
+                    {user.isVip ? "VIP会员" : "普通用户"}
+                  </span>
+                </div>
+                {user.isVip && (
+                  <>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-gray-600">会员类型</span>
+                      <span className="text-gray-900">{membership.type}</span>
                     </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">旧密码</label>
-                    <input
-                      type="password"
-                      value={oldPassword}
-                      onChange={(e) => {
-                        setOldPassword(e.target.value)
-                        setPasswordErrors((prev) => ({ ...prev, old: "" }))
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="请输入旧密码"
-                    />
-                    {passwordErrors.old && (
-                      <p className="mt-1 text-sm text-red-500">{passwordErrors.old}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => {
-                        setNewPassword(e.target.value)
-                        setPasswordErrors((prev) => ({ ...prev, new: "" }))
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="请输入新密码（6-12位）"
-                    />
-                    {passwordErrors.new && (
-                      <p className="mt-1 text-sm text-red-500">{passwordErrors.new}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">确认密码</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value)
-                        setPasswordErrors((prev) => ({ ...prev, confirm: "" }))
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="请再次输入新密码"
-                    />
-                    {passwordErrors.confirm && (
-                      <p className="mt-1 text-sm text-red-500">{passwordErrors.confirm}</p>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleChangePassword}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    确认修改
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-gray-600">开通时间</span>
+                      <span className="text-gray-900">{membership.startDate}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3">
+                      <span className="text-gray-600">到期时间</span>
+                      <span className="text-gray-900">{membership.expireDate}</span>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* 历史脚本 */}
-            {activeTab === "scripts" && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">历史脚本</h3>
-                {mockScripts.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">暂无生成记录</p>
-                ) : (
-                  <div className="space-y-4">
-                    {mockScripts.map((script) => (
-                      <div key={script.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mr-2">
-                              {script.industry}
-                            </span>
-                            <span className="text-gray-900 font-medium">{script.productName}</span>
-                          </div>
-                          <span className="text-sm text-gray-400">{script.createdAt}</span>
+          {/* 修改密码 */}
+          {activeMenu === "password" && (
+            <div className="bg-white rounded-lg shadow-sm p-6 max-w-md">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">修改密码</h2>
+              <div className="space-y-4">
+                {passwordSuccess && (
+                  <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">
+                    密码修改成功！
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">旧密码</label>
+                  <input
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => {
+                      setOldPassword(e.target.value)
+                      setPasswordErrors((prev) => ({ ...prev, old: "" }))
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="请输入旧密码"
+                  />
+                  {passwordErrors.old && (
+                    <p className="mt-1 text-sm text-red-500">{passwordErrors.old}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value)
+                      setPasswordErrors((prev) => ({ ...prev, new: "" }))
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="请输入新密码（6-12位）"
+                  />
+                  {passwordErrors.new && (
+                    <p className="mt-1 text-sm text-red-500">{passwordErrors.new}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">确认密码</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      setPasswordErrors((prev) => ({ ...prev, confirm: "" }))
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="请再次输入新密码"
+                  />
+                  {passwordErrors.confirm && (
+                    <p className="mt-1 text-sm text-red-500">{passwordErrors.confirm}</p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleChangePassword}
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  确认修改
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 历史脚本 */}
+          {activeMenu === "scripts" && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">历史脚本</h2>
+              {mockScripts.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">暂无生成记录</p>
+              ) : (
+                <div className="space-y-4">
+                  {mockScripts.map((script) => (
+                    <div key={script.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mr-2">
+                            {script.industry}
+                          </span>
+                          <span className="text-gray-900 font-medium">{script.productName}</span>
                         </div>
-                        <p className="text-gray-600 text-sm mb-2">选题：{script.topic}</p>
-                        {script.productDesc && (
-                          <p className="text-gray-500 text-sm">产品描述：{script.productDesc}</p>
+                        <span className="text-sm text-gray-400">{script.createdAt}</span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-2">选题：{script.topic}</p>
+                      {script.productDesc && (
+                        <p className="text-gray-500 text-sm">产品描述：{script.productDesc}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 订单中心 */}
+          {activeMenu === "orders" && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">订单中心</h2>
+              {mockOrders.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">暂无订单记录</p>
+              ) : (
+                <div className="space-y-3">
+                  {mockOrders.map((order) => (
+                    <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-900 font-medium">{order.type}</span>
+                        <span
+                          className={`text-sm px-2 py-1 rounded ${
+                            order.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {order.status === "completed" ? "已完成" : "待处理"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>订单号：{order.id}</span>
+                        <span>下单时间：{order.createdAt}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                        <span className="text-lg font-medium text-red-500">¥{order.amount}</span>
+                        {order.status === "pending" && (
+                          <button className="text-sm text-gray-500 hover:text-gray-700">
+                            取消订单
+                          </button>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 订单中心 */}
-            {activeTab === "orders" && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">订单中心</h3>
-                {mockOrders.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">暂无订单记录</p>
-                ) : (
-                  <div className="space-y-3">
-                    {mockOrders.map((order) => (
-                      <div key={order.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-gray-900 font-medium">{order.type}</span>
-                          <span
-                            className={`text-sm px-2 py-1 rounded ${
-                              order.status === "completed"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {order.status === "completed" ? "已完成" : "待处理"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
-                          <span>订单号：{order.id}</span>
-                          <span>下单时间：{order.createdAt}</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                          <span className="text-lg font-medium text-red-500">¥{order.amount}</span>
-                          {order.status === "pending" && (
-                            <button className="text-sm text-gray-500 hover:text-gray-700">
-                              取消订单
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
