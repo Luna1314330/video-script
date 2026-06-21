@@ -34,6 +34,7 @@ export default function UsersPage() {
   const [newPhone, setNewPhone] = useState('')
   const [newNickname, setNewNickname] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [phoneError, setPhoneError] = useState('')
 
   useEffect(() => {
     setUsers(mockUsers)
@@ -50,19 +51,20 @@ export default function UsersPage() {
   }, [users, searchQuery])
 
   const handleAddUser = () => {
+    setPhoneError('')
     // 手机号验证：必须是11位数字
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!newPhone.trim()) {
-      alert('请输入手机号')
+      setPhoneError('请输入手机号')
       return
     }
     if (!phoneRegex.test(newPhone)) {
-      alert('手机号格式不正确，请输入11位有效手机号')
+      setPhoneError('手机号格式不正确，请输入11位有效手机号')
       return
     }
     // 检查手机号是否已存在
     if (users.some(u => u.phone === newPhone)) {
-      alert('该手机号已注册')
+      setPhoneError('该手机号已注册')
       return
     }
     const newUser: User = {
@@ -99,7 +101,7 @@ export default function UsersPage() {
             <CardTitle className="text-base">用户列表</CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button 
-                onClick={() => { console.log('添加用户按钮被点击'); setShowAddModal(true); }} 
+                onClick={() => { console.log('添加用户按钮被点击'); setNewPhone(''); setNewNickname(''); setPhoneError(''); setShowAddModal(true); }} 
                 className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-primary px-3 h-8 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 mr-1" />
@@ -202,8 +204,9 @@ export default function UsersPage() {
                 <Input
                   placeholder="请输入手机号"
                   value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
+                  onChange={(e) => { setNewPhone(e.target.value); setPhoneError('') }}
                 />
+                {phoneError && <p className="text-sm text-red-500 mt-1">{phoneError}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">昵称（选填）</label>
