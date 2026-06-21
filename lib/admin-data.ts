@@ -72,6 +72,18 @@ export interface SystemSettings {
   smsNotification: boolean
 }
 
+export interface ScriptHistory {
+  id: string
+  userId: string
+  userPhone: string
+  industry: string
+  productName: string
+  productDesc?: string
+  shootScene?: string
+  topic: string
+  createdAt: string
+}
+
 // Mock users
 export const mockUsers: User[] = [
   {
@@ -245,3 +257,48 @@ export const mockSystemSettings: SystemSettings = {
   },
   smsNotification: true,
 }
+
+// Mock script history
+export const mockScriptHistory: ScriptHistory[] = [
+  {
+    id: '1',
+    userId: '1',
+    userPhone: '13800138001',
+    industry: '餐饮',
+    productName: '手工奶茶',
+    productDesc: '采用新鲜牛奶和优质茶叶现场制作',
+    shootScene: '店内制作过程',
+    topic: '揭秘奶茶店不会告诉你的秘密',
+    createdAt: '2024-03-21 14:30:00',
+  },
+  {
+    id: '2',
+    userId: '2',
+    userPhone: '13800138002',
+    industry: '美妆',
+    productName: '防晒霜',
+    productDesc: 'SPF50+ 防水防汗，适合户外运动',
+    topic: '夏天必买的防晒神器',
+    createdAt: '2024-03-20 10:15:00',
+  },
+  {
+    id: '3',
+    userId: '1',
+    userPhone: '13800138001',
+    industry: '教育',
+    productName: '少儿英语课程',
+    productDesc: '3-12岁英语启蒙在线课程',
+    shootScene: '课堂互动场景',
+    topic: '孩子英语启蒙的黄金期',
+    createdAt: '2024-03-19 16:45:00',
+  },
+  {
+    id: '4',
+    userId: '3',
+    userPhone: '13800138003',
+    industry: '服装',
+    productName: '运动休闲裤',
+    topic: '这条裤子让你运动也能很时尚',
+    createdAt: '2024-03-18 09:20:00',
+  },
+]

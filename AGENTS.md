@@ -102,6 +102,7 @@
 | 用户管理 | `app/admin/users/page.tsx` | 用户列表、封禁/解封 |
 | 会员管理 | `app/admin/memberships/page.tsx` | 会员列表、手动开通 |
 | 订单管理 | `app/admin/orders/page.tsx` | 订单列表、退款操作 |
+| 脚本历史 | `app/admin/scripts/page.tsx` | 用户生成脚本记录 |
 | 系统设置 | `app/admin/settings/page.tsx` | 价格配置、免费次数、套餐开关 |
 | 管理状态 | `lib/admin-store.ts` | Zustand 管理员状态 |
 | Mock 数据 | `lib/admin-data.ts` | 后台管理模拟数据 |
@@ -115,6 +116,7 @@
 | profiles | 用户扩展信息 | 关联 auth.users |
 | memberships | 会员记录 | 关联 profiles |
 | orders | 订单记录 | 关联 profiles |
+| script_history | 脚本生成记录 | 关联 profiles |
 | system_settings | 系统设置 | Key-Value 配置 |
 
 ### RLS 策略

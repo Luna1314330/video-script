@@ -76,6 +76,25 @@ export const systemSettings = pgTable(
   ]
 );
 
+// 脚本历史表
+export const scriptHistory = pgTable(
+  "script_history",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    user_id: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    industry: varchar("industry", { length: 100 }).notNull(),
+    product_name: varchar("product_name", { length: 200 }).notNull(),
+    product_desc: text("product_desc"),
+    shoot_scene: text("shoot_scene"),
+    topic: text("topic").notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("script_history_user_id_idx").on(table.user_id),
+    index("script_history_created_at_idx").on(table.created_at),
+  ]
+);
+
 // Supabase Auth users 表引用（只读）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const authUsers = pgTable("auth.users", {
@@ -107,3 +126,8 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export const insertSystemSettingSchema = createSchemaFactory({ coerce: { date: true } }).createInsertSchema(systemSettings);
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+
+const { createInsertSchema: createScriptHistoryInsertSchema } = createSchemaFactory({ coerce: { date: true } });
+export const insertScriptHistorySchema = createScriptHistoryInsertSchema(scriptHistory).omit({ created_at: true });
+export type ScriptHistory = typeof scriptHistory.$inferSelect;
+export type InsertScriptHistory = z.infer<typeof insertScriptHistorySchema>;

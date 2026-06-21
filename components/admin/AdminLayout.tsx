@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  FileText,
 } from 'lucide-react'
 import { useAdminStore } from '@/lib/admin-store'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/admin/users', label: '用户管理', icon: Users },
   { href: '/admin/memberships', label: '会员管理', icon: CreditCard },
   { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
+  { href: '/admin/scripts', label: '脚本历史', icon: FileText },
   { href: '/admin/settings', label: '系统设置', icon: Settings },
 ]
 
