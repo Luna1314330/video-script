@@ -203,6 +203,7 @@ export const mockDashboardStats: DashboardStats = {
   todayRevenue: 456,
   totalUsers: 1256,
   totalMembers: 328,
+  totalRevenue: 25680,
   userGrowth: [
     { date: '2024-03-14', count: 5 },
     { date: '2024-03-15', count: 8 },
