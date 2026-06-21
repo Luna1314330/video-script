@@ -9,7 +9,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('admin_logged_in')
@@ -20,25 +19,13 @@ export default function LoginPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
-
-    if (!username.trim() || !password.trim()) {
-      setError('请输入用户名和密码')
-      return
-    }
-
     setLoading(true)
 
     setTimeout(() => {
-      if (username === 'admin' && password === 'admin1991') {
-        localStorage.setItem('admin_logged_in', 'true')
-        localStorage.setItem('admin_user', username)
-        window.location.href = '/admin'
-      } else {
-        setError('用户名或密码错误')
-        setLoading(false)
-      }
-    }, 1000)
+      localStorage.setItem('admin_logged_in', 'true')
+      localStorage.setItem('admin_user', username || 'admin')
+      window.location.href = '/admin'
+    }, 800)
   }
 
   return (
@@ -86,10 +73,6 @@ export default function LoginPage() {
                     disabled={loading}
                   />
                 </div>
-                
-                {error && (
-                  <p className="text-sm text-red-500">{error}</p>
-                )}
                 
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? '验证中...' : '登录'}
