@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -13,77 +12,61 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<{
+    phone?: string
+    password?: string
+    confirmPassword?: string
+  }>({})
 
-  // 错误提示状态
-  const [phoneError, setPhoneError] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  const [confirmPasswordError, setConfirmPasswordError] = useState('')
-
-  // 验证手机号
-  const handlePhoneBlur = () => {
-    if (!phone) {
-      setPhoneError('请输入手机号')
-    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
-      setPhoneError('请输入正确的手机号格式')
-    } else {
-      setPhoneError('')
+  const validatePhone = (value: string): boolean => {
+    if (!value) {
+      setErrors(prev => ({ ...prev, phone: '请输入手机号' }))
+      return false
     }
+    if (!/^1[3-9]\d{9}$/.test(value)) {
+      setErrors(prev => ({ ...prev, phone: '请输入正确的手机号格式' }))
+      return false
+    }
+    setErrors(prev => ({ ...prev, phone: undefined }))
+    return true
   }
 
-  // 验证密码
-  const handlePasswordBlur = () => {
-    if (!password) {
-      setPasswordError('请输入密码')
-    } else if (password.length < 6 || password.length > 18) {
-      setPasswordError('密码长度需为6-18位')
-    } else {
-      setPasswordError('')
+  const validatePassword = (value: string): boolean => {
+    if (!value) {
+      setErrors(prev => ({ ...prev, password: '请输入密码' }))
+      return false
     }
+    if (value.length < 6 || value.length > 18) {
+      setErrors(prev => ({ ...prev, password: '密码长度需为6-18位' }))
+      return false
+    }
+    setErrors(prev => ({ ...prev, password: undefined }))
+    return true
   }
 
-  // 验证确认密码
-  const handleConfirmBlur = () => {
-    if (!confirmPassword) {
-      setConfirmPasswordError('请再次输入密码')
-    } else if (confirmPassword !== password) {
-      setConfirmPasswordError('两次密码输入不一致')
-    } else {
-      setConfirmPasswordError('')
+  const validateConfirmPassword = (value: string): boolean => {
+    if (!value) {
+      setErrors(prev => ({ ...prev, confirmPassword: '请再次输入密码' }))
+      return false
     }
+    if (value !== password) {
+      setErrors(prev => ({ ...prev, confirmPassword: '两次密码输入不一致' }))
+      return false
+    }
+    setErrors(prev => ({ ...prev, confirmPassword: undefined }))
+    return true
   }
 
-  // 提交时验证所有字段
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // 验证所有字段
-    let hasError = false
+    const isPhoneValid = validatePhone(phone)
+    const isPasswordValid = validatePassword(password)
+    const isConfirmValid = validateConfirmPassword(confirmPassword)
 
-    if (!phone) {
-      setPhoneError('请输入手机号')
-      hasError = true
-    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
-      setPhoneError('请输入正确的手机号格式')
-      hasError = true
+    if (!isPhoneValid || !isPasswordValid || !isConfirmValid) {
+      return
     }
-
-    if (!password) {
-      setPasswordError('请输入密码')
-      hasError = true
-    } else if (password.length < 6 || password.length > 18) {
-      setPasswordError('密码长度需为6-18位')
-      hasError = true
-    }
-
-    if (!confirmPassword) {
-      setConfirmPasswordError('请再次输入密码')
-      hasError = true
-    } else if (confirmPassword !== password) {
-      setConfirmPasswordError('两次密码输入不一致')
-      hasError = true
-    }
-
-    if (hasError) return
 
     setLoading(true)
 
@@ -97,15 +80,14 @@ export default function RegisterPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setPhoneError(data.error || '注册失败')
+        setErrors({ phone: data.error || '注册失败' })
         setLoading(false)
         return
       }
 
-      // 注册成功，跳转到登录页
       router.push('/login?registered=true')
     } catch {
-      setPhoneError('网络错误，请重试')
+      setErrors({ phone: '网络错误，请重试' })
       setLoading(false)
     }
   }
@@ -118,62 +100,56 @@ export default function RegisterPage() {
           <CardDescription className="text-center">输入手机号和密码注册账号</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="phone" className="text-sm font-medium">手机号</label>
-              <Input
+              <input
                 id="phone"
                 type="tel"
                 placeholder="请输入手机号"
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value)
-                  setPhoneError('') // 输入时清除错误
+                  if (errors.phone) validatePhone(e.target.value)
                 }}
-                onBlur={handlePhoneBlur}
-                className="h-11"
+                onBlur={(e) => validatePhone(e.target.value)}
+                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              {phoneError && (
-                <p className="text-red-500 text-sm">{phoneError}</p>
-              )}
+              <p style={{ color: 'red', fontSize: '14px', margin: 0 }}>{errors.phone || ''}</p>
             </div>
 
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">密码</label>
-              <Input
+              <input
                 id="password"
                 type="password"
                 placeholder="请输入密码（6-18位）"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
-                  setPasswordError('') // 输入时清除错误
+                  if (errors.password) validatePassword(e.target.value)
                 }}
-                onBlur={handlePasswordBlur}
-                className="h-11"
+                onBlur={(e) => validatePassword(e.target.value)}
+                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              {passwordError && (
-                <p className="text-red-500 text-sm">{passwordError}</p>
-              )}
+              <p style={{ color: 'red', fontSize: '14px', margin: 0 }}>{errors.password || ''}</p>
             </div>
 
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="text-sm font-medium">确认密码</label>
-              <Input
+              <input
                 id="confirmPassword"
                 type="password"
                 placeholder="请再次输入密码"
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value)
-                  setConfirmPasswordError('') // 输入时清除错误
+                  if (errors.confirmPassword) validateConfirmPassword(e.target.value)
                 }}
-                onBlur={handleConfirmBlur}
-                className="h-11"
+                onBlur={(e) => validateConfirmPassword(e.target.value)}
+                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              {confirmPasswordError && (
-                <p className="text-red-500 text-sm">{confirmPasswordError}</p>
-              )}
+              <p style={{ color: 'red', fontSize: '14px', margin: 0 }}>{errors.confirmPassword || ''}</p>
             </div>
 
             <Button type="submit" className="w-full h-11" disabled={loading}>
