@@ -32,8 +32,8 @@ export default function RegisterPage() {
       setPasswordError("请输入密码")
       return false
     }
-    if (value.length < 6 || value.length > 18) {
-      setPasswordError("密码长度需为6-18位")
+    if (value.length < 6 || value.length > 12) {
+      setPasswordError("密码长度需为6-12位")
       return false
     }
     setPasswordError("")
