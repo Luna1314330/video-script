@@ -41,11 +41,35 @@ export default function ProfileClient() {
         </div>
 
         {/* 右侧内容 */}
-        <div className="flex-1 p-8">
-          {activeMenu === "info" && <MemberInfo />}
-          {activeMenu === "password" && <ChangePassword />}
-          {activeMenu === "scripts" && <ScriptHistory />}
-          {activeMenu === "orders" && <OrderCenter />}
+        <div className="flex-1 p-8 flex flex-col">
+          <div className="flex-1">
+            {activeMenu === "info" && <MemberInfo />}
+            {activeMenu === "password" && <ChangePassword />}
+            {activeMenu === "scripts" && <ScriptHistory />}
+            {activeMenu === "orders" && <OrderCenter />}
+          </div>
+          {/* 退出登录按钮 */}
+          <div className="mt-8 pt-6 border-t">
+            <button
+              onClick={async () => {
+                try {
+                  const { getSupabaseClient } = await import('@/storage/database/supabase-client')
+                  const supabase = getSupabaseClient()
+                  await supabase.auth.signOut()
+                  // 清除本地存储
+                  localStorage.removeItem('sb-access-token')
+                  localStorage.removeItem('sb-refresh-token')
+                  // 跳转到首页
+                  window.location.href = '/'
+                } catch (e) {
+                  console.error('退出失败', e)
+                }
+              }}
+              className="w-full bg-red-50 text-red-600 py-2.5 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+            >
+              退出登录
+            </button>
+          </div>
         </div>
       </div>
     </div>
