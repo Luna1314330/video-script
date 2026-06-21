@@ -2,40 +2,37 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 import { useAdminStore } from '@/lib/admin-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAdminStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
 
     if (!username || !password) {
-      toast.error('请输入用户名和密码')
+      setError('请输入用户名和密码')
       return
     }
 
     setLoading(true)
-    try {
-      const success = await login(username, password)
-      if (success) {
-        toast.success('登录成功')
-        router.push('/admin')
-      } else {
-        toast.error('用户名或密码错误')
-        setLoading(false)
-      }
-    } catch {
-      toast.error('登录失败，请重试')
+    
+    // 直接验证
+    const success = await login(username, password)
+    
+    if (success) {
+      router.push('/admin')
+    } else {
+      setError('用户名或密码错误')
       setLoading(false)
     }
   }
@@ -68,7 +65,6 @@ export default function LoginPage() {
                   placeholder="请输入用户名"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
                   disabled={loading}
                 />
               </div>
@@ -82,12 +78,16 @@ export default function LoginPage() {
                   placeholder="请输入密码"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
                   disabled={loading}
                 />
               </div>
+              
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+              
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? '登录中...' : '登录'}
+                {loading ? '验证中...' : '登录'}
               </Button>
             </form>
           </CardContent>
@@ -96,10 +96,10 @@ export default function LoginPage() {
 
       {/* Loading 遮罩 */}
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 rounded-xl bg-background p-8 shadow-lg">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-lg font-medium">验证中...</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-xl bg-background p-8 shadow-lg">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="mt-4 text-center font-medium">验证中...</p>
           </div>
         </div>
       )}
