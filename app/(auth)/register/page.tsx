@@ -108,10 +108,8 @@ export default function RegisterPage() {
                 type="tel"
                 placeholder="请输入手机号"
                 value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value)
-                  if (errors.phone) validatePhone(e.target.value)
-                }}
+                onChange={(e) => setPhone(e.target.value)}
+                onFocus={() => setErrors(prev => ({ ...prev, phone: undefined }))}
                 onBlur={(e) => validatePhone(e.target.value)}
                 className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
@@ -125,10 +123,8 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="请输入密码（6-18位）"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  if (errors.password) validatePassword(e.target.value)
-                }}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setErrors(prev => ({ ...prev, password: undefined }))}
                 onBlur={(e) => validatePassword(e.target.value)}
                 className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
@@ -142,10 +138,8 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="请再次输入密码"
                 value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value)
-                  if (errors.confirmPassword) validateConfirmPassword(e.target.value)
-                }}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={() => setErrors(prev => ({ ...prev, confirmPassword: undefined }))}
                 onBlur={(e) => validateConfirmPassword(e.target.value)}
                 className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />

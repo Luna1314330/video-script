@@ -86,12 +86,10 @@ export default function LoginPage() {
               type="tel"
               placeholder="请输入手机号"
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
-                setPhoneError('')
-              }}
+              onChange={(e) => setPhone(e.target.value)}
+              onFocus={() => setPhoneError('')}
               onBlur={(e) => validatePhone(e.target.value)}
-              style={{ height: '44px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+              style={{ height: '44px', padding: '0 12px', border: phoneError ? '1px solid #ef4444' : '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
             />
             {phoneError && <span style={{ color: 'red', fontSize: '14px' }}>{phoneError}</span>}
           </div>
@@ -102,12 +100,10 @@ export default function LoginPage() {
               type="password"
               placeholder="请输入密码"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setPasswordError('')
-              }}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordError('')}
               onBlur={(e) => validatePassword(e.target.value)}
-              style={{ height: '44px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+              style={{ height: '44px', padding: '0 12px', border: passwordError ? '1px solid #ef4444' : '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
             />
             {passwordError && <span style={{ color: 'red', fontSize: '14px' }}>{passwordError}</span>}
           </div>
