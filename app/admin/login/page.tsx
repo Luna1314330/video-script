@@ -92,10 +92,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          默认账号: admin / admin123
-        </p>
       </div>
 
       {/* Loading 遮罩 */}
