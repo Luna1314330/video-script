@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Search,
   Eye,
@@ -201,6 +201,7 @@ function RefundConfirmDialog({
 }
 
 export default function OrdersPage() {
+  const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -208,6 +209,10 @@ export default function OrdersPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
   const [orders, setOrders] = useState(mockOrders)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -257,6 +262,14 @@ export default function OrdersPage() {
       )
     )
     toast.success('退款成功')
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
   }
 
   return (

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Search, Ban, Unlock, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Search, Ban, Unlock, Eye, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Card,
@@ -135,12 +136,20 @@ function UserDetailDialog({
 }
 
 export default function UsersPage() {
+  const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [newPhone, setNewPhone] = useState('')
+  const [newNickname, setNewNickname] = useState('')
   const [users, setUsers] = useState(mockUsers)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -186,6 +195,53 @@ export default function UsersPage() {
     setDetailDialogOpen(true)
   }
 
+  const handleAddUser = () => {
+    if (!newPhone.trim()) {
+      toast.error('请输入手机号')
+      return
+    }
+    if (!/^1[3-9]\d{9}$/.test(newPhone)) {
+      toast.error('请输入正确的手机号')
+      return
+    }
+
+    // 检查手机号是否已存在
+    if (users.some(u => u.phone === newPhone)) {
+      toast.error('该手机号已注册')
+      return
+    }
+
+    const newUser: User = {
+      id: `U${Date.now()}`,
+      phone: newPhone,
+      nickname: newNickname.trim() || `用户${newPhone.slice(-4)}`,
+      status: 'active',
+      membership: null,
+      createdAt: new Date().toLocaleString('zh-CN'),
+      lastLogin: new Date().toLocaleString('zh-CN'),
+    }
+
+    setUsers(prev => [newUser, ...prev])
+    setAddDialogOpen(false)
+    setNewPhone('')
+    setNewNickname('')
+    toast.success('用户添加成功')
+  }
+
+  const openAddDialog = () => {
+    setNewPhone('')
+    setNewNickname('')
+    setAddDialogOpen(true)
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -198,6 +254,10 @@ export default function UsersPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">用户列表</CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
+              <Button onClick={openAddDialog} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                添加用户
+              </Button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -328,6 +388,46 @@ export default function UsersPage() {
         open={detailDialogOpen}
         onClose={() => setDetailDialogOpen(false)}
       />
+
+      {/* 添加用户对话框 */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>添加用户</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone">手机号 <span className="text-destructive">*</span></Label>
+              <Input
+                id="phone"
+                placeholder="请输入手机号"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                maxLength={11}
+              />
+              <p className="text-xs text-muted-foreground">用户使用手机号登录</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nickname">昵称</Label>
+              <Input
+                id="nickname"
+                placeholder="请输入昵称（选填）"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">不填则自动生成</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleAddUser}>
+                添加
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

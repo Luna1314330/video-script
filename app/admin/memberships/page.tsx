@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Plus,
   Search,
@@ -152,11 +152,16 @@ function ActivateMembershipDialog({
 }
 
 export default function MembershipsPage() {
+  const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [activateDialogOpen, setActivateDialogOpen] = useState(false)
   const [memberships, setMemberships] = useState(mockMemberships)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filteredMemberships = useMemo(() => {
     return memberships.filter((m) => {
@@ -235,6 +240,14 @@ export default function MembershipsPage() {
     const now = new Date()
     const diffDays = Math.ceil((expire.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     return diffDays <= 7 && diffDays > 0
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
   }
 
   return (
