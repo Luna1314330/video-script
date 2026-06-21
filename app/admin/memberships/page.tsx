@@ -71,6 +71,16 @@ function ActivateMembershipDialog({
   const [searchPhone, setSearchPhone] = useState('')
   const [membershipType, setMembershipType] = useState<Membership['type']>('monthly')
 
+  const getMembershipLabel = (type: string) => {
+    const prices = mockSystemSettings.membership
+    switch (type) {
+      case 'monthly': return `月度 - ¥${prices.monthly.price}`
+      case 'quarterly': return `季度 - ¥${prices.quarterly.price}`
+      case 'yearly': return `年度 - ¥${prices.yearly.price}`
+      default: return type
+    }
+  }
+
   const matchedUser = mockUsers.find(
     (u) => u.phone.includes(searchPhone) && u.status === 'active'
   )
@@ -112,12 +122,9 @@ function ActivateMembershipDialog({
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">会员类型</label>
-            <Select
-              value={membershipType}
-              onValueChange={(v) => setMembershipType(v as Membership['type'])}
-            >
-              <SelectTrigger>
-                <SelectValue />
+            <Select value={membershipType} onValueChange={(v) => setMembershipType(v as Membership['type'])}>
+              <SelectTrigger className="w-full">
+                <SelectValue>{getMembershipLabel(membershipType)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {mockSystemSettings.membership.monthly.enabled && (
