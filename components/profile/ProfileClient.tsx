@@ -10,7 +10,7 @@ const menuItems = [
 ]
 
 export default function ProfileClient() {
-  const [activeMenu, setActiveMenu] = useState<string>("scripts")
+  const [activeMenu, setActiveMenu] = useState<string>("orders")
 
   return (
     <div className="min-h-screen bg-gray-50">
