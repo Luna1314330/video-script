@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Eye, Ban, Unlock, X } from 'lucide-react'
 
@@ -84,10 +83,13 @@ export default function UsersPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">用户列表</CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button onClick={() => setShowAddModal(true)} size="sm">
+              <button 
+                onClick={() => setShowAddModal(true)} 
+                className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-primary px-3 h-8 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 添加用户
-              </Button>
+              </button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -141,24 +143,24 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 px-2">{user.createdAt}</td>
                       <td className="py-3 px-2 text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
+                        <button 
+                          className="inline-flex items-center justify-center rounded-md hover:bg-muted p-1.5"
                           onClick={() => setSelectedUser(user)}
+                          title="查看详情"
                         >
                           <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
+                        </button>
+                        <button 
+                          className="inline-flex items-center justify-center rounded-md hover:bg-muted p-1.5"
                           onClick={() => handleToggleBan(user.id)}
+                          title={user.status === 'active' ? '封禁用户' : '解除封禁'}
                         >
                           {user.status === 'active' ? (
                             <Ban className="h-4 w-4 text-red-500" />
                           ) : (
                             <Unlock className="h-4 w-4 text-green-500" />
                           )}
-                        </Button>
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -197,10 +199,18 @@ export default function UsersPage() {
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                <button 
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background hover:bg-muted h-9 px-4 text-sm"
+                  onClick={() => setShowAddModal(false)}
+                >
                   取消
-                </Button>
-                <Button onClick={handleAddUser}>添加</Button>
+                </button>
+                <button 
+                  className="inline-flex items-center justify-center gap-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 text-sm"
+                  onClick={handleAddUser}
+                >
+                  添加
+                </button>
               </div>
             </div>
           </div>
@@ -244,7 +254,12 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setSelectedUser(null)}>关闭</Button>
+              <button 
+                className="inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background hover:bg-muted h-9 px-4 text-sm"
+                onClick={() => setSelectedUser(null)}
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>
