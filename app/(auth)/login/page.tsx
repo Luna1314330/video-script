@@ -3,9 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,10 +13,10 @@ export default function LoginPage() {
   const [passwordError, setPasswordError] = useState('')
 
   // 验证手机号
-  const handlePhoneBlur = () => {
-    if (!phone) {
+  const validatePhone = (value: string) => {
+    if (!value) {
       setPhoneError('请输入手机号')
-    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
+    } else if (!/^1[3-9]\d{9}$/.test(value)) {
       setPhoneError('请输入正确的手机号格式')
     } else {
       setPhoneError('')
@@ -27,8 +24,8 @@ export default function LoginPage() {
   }
 
   // 验证密码
-  const handlePasswordBlur = () => {
-    if (!password) {
+  const validatePassword = (value: string) => {
+    if (!value) {
       setPasswordError('请输入密码')
     } else {
       setPasswordError('')
@@ -39,22 +36,11 @@ export default function LoginPage() {
     e.preventDefault()
 
     // 验证所有字段
-    let hasError = false
+    validatePhone(phone)
+    validatePassword(password)
 
-    if (!phone) {
-      setPhoneError('请输入手机号')
-      hasError = true
-    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
-      setPhoneError('请输入正确的手机号格式')
-      hasError = true
-    }
-
-    if (!password) {
-      setPasswordError('请输入密码')
-      hasError = true
-    }
-
-    if (hasError) return
+    if (phoneError || passwordError) return
+    if (!phone || !password) return
 
     setLoading(true)
 
@@ -77,7 +63,7 @@ export default function LoginPage() {
         return
       }
 
-      // 登录成功，保存 token 并跳转
+      // 登录成功
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       router.push('/dashboard')
@@ -88,62 +74,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">登录</CardTitle>
-          <CardDescription className="text-center">输入手机号和密码登录</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium">手机号</label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="请输入手机号"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value)
-                  setPhoneError('')
-                }}
-                onBlur={handlePhoneBlur}
-                className="h-11"
-              />
-              {phoneError && (
-                <p className="text-red-500 text-sm">{phoneError}</p>
-              )}
-            </div>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', padding: '32px', width: '100%', maxWidth: '420px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', marginBottom: '8px' }}>登录</h1>
+        <p style={{ color: '#64748b', textAlign: 'center', marginBottom: '24px' }}>输入手机号和密码登录</p>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">密码</label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="请输入密码"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  setPasswordError('')
-                }}
-                onBlur={handlePasswordBlur}
-                className="h-11"
-              />
-              {passwordError && (
-                <p className="text-red-500 text-sm">{passwordError}</p>
-              )}
-            </div>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '14px', fontWeight: '500' }}>手机号</label>
+            <input
+              type="tel"
+              placeholder="请输入手机号"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                setPhoneError('')
+              }}
+              onBlur={(e) => validatePhone(e.target.value)}
+              style={{ height: '44px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+            />
+            {phoneError && <span style={{ color: 'red', fontSize: '14px' }}>{phoneError}</span>}
+          </div>
 
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading ? '登录中...' : '登录'}
-            </Button>
-          </form>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '14px', fontWeight: '500' }}>密码</label>
+            <input
+              type="password"
+              placeholder="请输入密码"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                setPasswordError('')
+              }}
+              onBlur={(e) => validatePassword(e.target.value)}
+              style={{ height: '44px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+            />
+            {passwordError && <span style={{ color: 'red', fontSize: '14px' }}>{passwordError}</span>}
+          </div>
 
-          <p className="mt-4 text-center text-sm">
-            还没有账号？<Link href="/register" className="text-blue-600 hover:underline">立即注册</Link>
-          </p>
-        </CardContent>
-      </Card>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ height: '44px', background: loading ? '#94a3b8' : 'black', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px' }}
+          >
+            {loading ? '登录中...' : '登录'}
+          </button>
+        </form>
+
+        <p style={{ textAlign: 'center', marginTop: '24px', color: '#64748b', fontSize: '14px' }}>
+          还没有账号？<Link href="/register" style={{ color: '#3b82f6', fontWeight: '500' }}>立即注册</Link>
+        </p>
+      </div>
     </div>
   )
 }

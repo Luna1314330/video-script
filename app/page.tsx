@@ -30,6 +30,9 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <Link href="/membership" className="text-sm text-amber-600 font-medium hover:text-amber-700">
+                开通会员
+              </Link>
               <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
                 登录
               </Link>
