@@ -1,65 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient } from '@/storage/database/supabase-client'
+
+// Mock 用户数据（实际项目中从数据库读取）
+const mockUsers: Array<{
+  id: string
+  phone: string
+  password: string
+  created_at: string
+}> = [
+  {
+    id: '1',
+    phone: '13800138001',
+    password: '123456', // 演示账号
+    created_at: new Date().toISOString(),
+  },
+]
+
+// 生成简单 token（实际项目使用 JWT）
+function generateToken(userId: string): string {
+  return Buffer.from(JSON.stringify({ userId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 })).toString('base64')
+}
 
 // 注册
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, password, phone, nickname } = body
+    const { phone, password } = await request.json()
 
-    // 验证必填字段
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: '邮箱和密码不能为空' },
-        { status: 400 }
-      )
+    if (!phone || !password) {
+      return NextResponse.json({ error: '请填写完整信息' }, { status: 400 })
     }
 
-    const supabase = getSupabaseClient()
+    if (phone.length !== 11) {
+      return NextResponse.json({ error: '手机号格式不正确' }, { status: 400 })
+    }
 
-    // 使用 Supabase Auth 注册
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
+    if (password.length < 6) {
+      return NextResponse.json({ error: '密码至少6位' }, { status: 400 })
+    }
+
+    // 检查手机号是否已注册
+    const exists = mockUsers.find((u) => u.phone === phone)
+    if (exists) {
+      return NextResponse.json({ error: '该手机号已注册' }, { status: 400 })
+    }
+
+    // 创建新用户
+    const newUser = {
+      id: String(mockUsers.length + 1),
+      phone,
       password,
-      email_confirm: true,
-      user_metadata: {
-        phone: phone || null,
-        nickname: nickname || email.split('@')[0],
-      },
-    })
-
-    if (authError) {
-      return NextResponse.json(
-        { error: authError.message },
-        { status: 400 }
-      )
+      created_at: new Date().toISOString(),
     }
-
-    // 创建用户 profiles
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: authData.user.id,
-      phone: phone || null,
-      nickname: nickname || email.split('@')[0],
-      status: 'active',
-    })
-
-    if (profileError) {
-      console.error('创建 profiles 失败:', profileError)
-    }
+    mockUsers.push(newUser)
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: authData.user.id,
-        email: authData.user.email,
-        phone: authData.user.phone,
-      },
+      message: '注册成功',
+      user: { id: newUser.id, phone: newUser.phone },
     })
-  } catch (error) {
-    console.error('注册错误:', error)
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    )
+  } catch {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }

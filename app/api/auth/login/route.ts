@@ -1,77 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient } from '@/storage/database/supabase-client'
+
+// Mock 用户数据（实际项目中从数据库读取）
+const mockUsers: Array<{
+  id: string
+  phone: string
+  password: string
+  created_at: string
+}> = [
+  {
+    id: '1',
+    phone: '13800138001',
+    password: '123456', // 演示账号
+    created_at: new Date().toISOString(),
+  },
+]
+
+// 生成简单 token（实际项目使用 JWT）
+function generateToken(userId: string): string {
+  return Buffer.from(JSON.stringify({ userId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 })).toString('base64')
+}
 
 // 登录
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, password } = body
+    const { phone, password } = await request.json()
 
-    // 验证必填字段
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: '邮箱和密码不能为空' },
-        { status: 400 }
-      )
+    if (!phone || !password) {
+      return NextResponse.json({ error: '请填写手机号和密码' }, { status: 400 })
     }
 
-    const supabase = getSupabaseClient()
-
-    // 使用 Supabase Auth 登录
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 401 }
-      )
+    // 查找用户
+    const user = mockUsers.find((u) => u.phone === phone)
+    if (!user) {
+      return NextResponse.json({ error: '手机号或密码错误' }, { status: 401 })
     }
 
-    // 获取用户 profiles
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    if (profileError) {
-      console.error('获取 profiles 失败:', profileError)
+    // 验证密码
+    if (user.password !== password) {
+      return NextResponse.json({ error: '手机号或密码错误' }, { status: 401 })
     }
 
-    // 检查用户状态
-    if (profile?.status === 'banned') {
-      await supabase.auth.signOut()
-      return NextResponse.json(
-        { error: '账号已被封禁' },
-        { status: 403 }
-      )
-    }
+    // 生成 token
+    const token = generateToken(user.id)
 
     return NextResponse.json({
       success: true,
+      token,
       user: {
-        id: data.user.id,
-        email: data.user.email,
-        phone: data.user.phone,
-        nickname: profile?.nickname,
-        avatar: profile?.avatar,
-        status: profile?.status,
-      },
-      session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_in: data.session.expires_in,
-        expires_at: data.session.expires_at,
+        id: user.id,
+        phone: user.phone,
       },
     })
-  } catch (error) {
-    console.error('登录错误:', error)
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    )
+  } catch {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }

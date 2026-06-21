@@ -1,76 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient } from '@/storage/database/supabase-client'
 
-// 获取当前用户信息
+// Mock 用户数据
+const mockUsers: Array<{
+  id: string
+  phone: string
+  password: string
+  created_at: string
+}> = [
+  {
+    id: '1',
+    phone: '13800138001',
+    password: '123456',
+    created_at: new Date().toISOString(),
+  },
+]
+
+// 获取当前用户
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: '未提供认证令牌' },
-        { status: 401 }
-      )
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+
+    if (!token) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
 
-    const token = authHeader.substring(7)
-    const supabase = getSupabaseClient(token)
-
-    // 验证 token 并获取用户
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: '无效的认证令牌' },
-        { status: 401 }
-      )
+    // 解析 token
+    const decoded = JSON.parse(Buffer.from(token, 'base64').toString())
+    
+    // 检查 token 是否过期
+    if (decoded.exp < Date.now()) {
+      return NextResponse.json({ error: '登录已过期' }, { status: 401 })
     }
 
-    // 获取用户 profiles
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (profileError) {
-      console.error('获取 profiles 失败:', profileError)
-    }
-
-    // 获取用户会员状态
-    const { data: membership, error: membershipError } = await supabase
-      .from('memberships')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .gte('expire_at', new Date().toISOString().split('T')[0])
-      .maybeSingle()
-
-    if (membershipError) {
-      console.error('获取会员信息失败:', membershipError)
+    // 查找用户
+    const user = mockUsers.find((u) => u.id === decoded.userId)
+    if (!user) {
+      return NextResponse.json({ error: '用户不存在' }, { status: 404 })
     }
 
     return NextResponse.json({
-      success: true,
       user: {
         id: user.id,
-        email: user.email,
         phone: user.phone,
-        nickname: profile?.nickname,
-        avatar: profile?.avatar,
-        status: profile?.status,
       },
-      membership: membership ? {
-        type: membership.type,
-        status: membership.status,
-        start_at: membership.start_at,
-        expire_at: membership.expire_at,
-      } : null,
     })
-  } catch (error) {
-    console.error('获取用户信息错误:', error)
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    )
+  } catch {
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }
