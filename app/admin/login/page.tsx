@@ -18,9 +18,9 @@ export default function LoginPage() {
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('admin_logged_in')
     if (isLoggedIn === 'true') {
-      router.push('/admin')
+      window.location.href = '/admin'
     }
-  }, [router])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +40,7 @@ export default function LoginPage() {
     if (username === 'admin' && password === 'admin1991') {
       localStorage.setItem('admin_logged_in', 'true')
       localStorage.setItem('admin_user', username)
-      router.push('/admin')
+      window.location.href = '/admin'
     } else {
       setError('用户名或密码错误')
       setLoading(false)
