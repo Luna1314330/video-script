@@ -99,7 +99,7 @@ export default function UsersPage() {
             <CardTitle className="text-base">用户列表</CardTitle>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button 
-                onClick={() => setShowAddModal(true)} 
+                onClick={() => { console.log('添加用户按钮被点击'); setShowAddModal(true); }} 
                 className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-primary px-3 h-8 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 mr-1" />
