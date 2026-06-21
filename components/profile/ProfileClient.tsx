@@ -53,8 +53,7 @@ export default function ProfileClient() {
             <button
               onClick={async () => {
                 try {
-                  const { getSupabaseClient } = await import('@/storage/database/supabase-client')
-                  const supabase = getSupabaseClient()
+                  const { supabase } = await import('@/lib/supabase')
                   await supabase.auth.signOut()
                   // 清除本地存储
                   localStorage.removeItem('sb-access-token')
