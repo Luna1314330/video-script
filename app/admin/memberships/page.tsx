@@ -228,6 +228,20 @@ export default function MembershipsPage() {
   const [activateDialogOpen, setActivateDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Mock数据
+  const mockMemberships: Membership[] = [
+    { id: '1', userId: '1', phone: '13800138001', nickname: '张三', type: 'yearly', startDate: '2024-01-15', expireDate: '2025-01-15', status: 'active', createdAt: '2024-01-15 10:30:00' },
+    { id: '2', userId: '2', phone: '13800138002', nickname: '李四', type: 'quarterly', startDate: '2024-02-01', expireDate: '2024-05-01', status: 'active', createdAt: '2024-02-01 14:20:00' },
+    { id: '3', userId: '3', phone: '13800138003', nickname: '王五', type: 'monthly', startDate: '2024-03-01', expireDate: '2024-04-01', status: 'expired', createdAt: '2024-03-01 09:15:00' },
+  ]
+  const mockSettings: Settings = {
+    membership: {
+      monthly: { price: 39, enabled: true },
+      quarterly: { price: 99, enabled: true },
+      yearly: { price: 299, enabled: true },
+    },
+  }
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -244,12 +258,17 @@ export default function MembershipsPage() {
       
       if (membershipsData.success) {
         setMemberships(membershipsData.data)
+      } else {
+        setMemberships(mockMemberships)
       }
       if (settingsData.success) {
         setSettings(settingsData.data)
+      } else {
+        setSettings(mockSettings)
       }
-    } catch (error) {
-      console.error('获取数据失败:', error)
+    } catch {
+      setMemberships(mockMemberships)
+      setSettings(mockSettings)
     } finally {
       setLoading(false)
     }

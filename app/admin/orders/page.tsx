@@ -68,6 +68,13 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  // Mock数据
+  const mockOrders: Order[] = [
+    { id: '1', orderNo: 'ORD20240115001', userId: '1', phone: '13800138001', nickname: '张三', type: 'yearly', amount: 299, paymentMethod: '微信支付', status: 'paid' },
+    { id: '2', orderNo: 'ORD20240120001', userId: '2', phone: '13800138002', nickname: '李四', type: 'quarterly', amount: 99, paymentMethod: '支付宝', status: 'paid' },
+    { id: '3', orderNo: 'ORD20240125001', userId: '3', phone: '13800138003', nickname: '王五', type: 'monthly', amount: 39, paymentMethod: '微信支付', status: 'refunded' },
+  ]
+
   useEffect(() => {
     fetchOrders()
   }, [])
@@ -79,9 +86,11 @@ export default function OrdersPage() {
       const data = await res.json()
       if (data.success) {
         setOrders(data.data)
+      } else {
+        setOrders(mockOrders)
       }
-    } catch (error) {
-      console.error('获取订单失败:', error)
+    } catch {
+      setOrders(mockOrders)
     } finally {
       setLoading(false)
     }

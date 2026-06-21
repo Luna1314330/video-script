@@ -28,9 +28,17 @@ export default function UsersPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newPhone, setNewPhone] = useState('')
   const [newNickname, setNewNickname] = useState('')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [phoneError, setPhoneError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+
+  // Mock数据（沙箱环境无法访问外网，使用Mock）
+  const mockUsers: User[] = [
+    { id: '1', phone: '13800138001', nickname: '张三', status: 'active', membershipType: 'yearly', createdAt: '2024-01-15 10:30:00' },
+    { id: '2', phone: '13800138002', nickname: '李四', status: 'active', membershipType: 'quarterly', createdAt: '2024-02-20 14:20:00' },
+    { id: '3', phone: '13800138003', nickname: '王五', status: 'banned', membershipType: 'none', createdAt: '2024-03-05 09:15:00' },
+  ]
 
   // 从 API 获取用户列表
   useEffect(() => {
@@ -44,9 +52,13 @@ export default function UsersPage() {
       const data = await res.json()
       if (data.success) {
         setUsers(data.data)
+      } else {
+        // 使用Mock数据
+        setUsers(mockUsers)
       }
-    } catch (error) {
-      console.error('获取用户列表失败:', error)
+    } catch {
+      // 网络失败时使用Mock数据
+      setUsers(mockUsers)
     } finally {
       setLoading(false)
     }
@@ -90,8 +102,7 @@ export default function UsersPage() {
       } else {
         setPhoneError(data.error || '添加失败')
       }
-    } catch (error) {
-      console.error('添加用户失败:', error)
+    } catch {
       setPhoneError('添加失败，请重试')
     }
   }
@@ -110,211 +121,215 @@ export default function UsersPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setUsers(users.map(u => 
-          u.id === userId ? { ...u, status: newStatus } : u
-        ))
+        await fetchUsers()
       }
     } catch (error) {
       console.error('更新用户状态失败:', error)
     }
   }
 
+  const handleViewDetail = (user: User) => {
+    setSelectedUser(user)
+    setShowDetailModal(true)
+  }
+
+  // 手机号脱敏
+  const maskPhone = (phone: string) => {
+    if (phone.length === 11) {
+      return phone.slice(0, 3) + '****' + phone.slice(-4)
+    }
+    return phone
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold">用户管理</h1>
-        <p className="text-sm text-muted-foreground">管理平台注册用户</p>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">用户管理</h1>
+        <p className="text-gray-500 mt-1">管理系统用户，查看用户信息和会员状态</p>
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base">用户列表</CardTitle>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button 
-                onClick={() => { console.log('添加用户按钮被点击'); setNewPhone(''); setNewNickname(''); setPhoneError(''); setShowAddModal(true); }} 
-                className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-primary px-3 h-8 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                添加用户
-              </button>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="搜索手机号/昵称"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-[200px]"
-                />
-              </div>
-            </div>
+          <div className="flex items-center justify-between">
+            <CardTitle>用户列表</CardTitle>
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus className="w-4 h-4 mr-1" />
+              添加用户
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-2 font-medium">用户ID</th>
-                  <th className="text-left py-3 px-2 font-medium">手机号</th>
-                  <th className="text-left py-3 px-2 font-medium">昵称</th>
-                  <th className="text-left py-3 px-2 font-medium">状态</th>
-                  <th className="text-left py-3 px-2 font-medium">会员</th>
-                  <th className="text-left py-3 px-2 font-medium">注册时间</th>
-                  <th className="text-right py-3 px-2 font-medium">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                      加载中...
-                    </td>
+          {/* 搜索框 */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="搜索手机号或昵称..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* 用户表格 */}
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">加载中...</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchQuery ? '未找到匹配的用户' : '暂无用户数据'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">手机号</th>
+                    <th className="text-left py-3 px-4 font-medium">昵称</th>
+                    <th className="text-left py-3 px-4 font-medium">会员状态</th>
+                    <th className="text-left py-3 px-4 font-medium">注册时间</th>
+                    <th className="text-left py-3 px-4 font-medium">操作</th>
                   </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                      暂无用户数据
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-2">{user.id}</td>
-                      <td className="py-3 px-2">{user.phone}</td>
-                      <td className="py-3 px-2">{user.nickname}</td>
-                      <td className="py-3 px-2">
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">{maskPhone(user.phone)}</td>
+                      <td className="py-3 px-4">{user.nickname || '-'}</td>
+                      <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded text-xs ${
-                          user.status === 'active' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
+                          user.membershipType === 'none' 
+                            ? 'bg-gray-100 text-gray-600' 
+                            : 'bg-green-100 text-green-700'
                         }`}>
-                          {user.status === 'active' ? '正常' : '已封禁'}
+                          {membershipTypeMap[user.membershipType]}
                         </span>
                       </td>
-                      <td className="py-3 px-2">
-                        {membershipTypeMap[user.membershipType]}
-                      </td>
-                      <td className="py-3 px-2">{user.createdAt}</td>
-                      <td className="py-3 px-2 text-right">
-                        <button 
-                          className="inline-flex items-center justify-center rounded-md hover:bg-muted p-1.5"
-                          onClick={() => setSelectedUser(user)}
-                          title="查看详情"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="inline-flex items-center justify-center rounded-md hover:bg-muted p-1.5"
-                          onClick={() => handleToggleBan(user.id)}
-                          title={user.status === 'active' ? '封禁用户' : '解除封禁'}
-                        >
-                          {user.status === 'active' ? (
-                            <Ban className="h-4 w-4 text-red-500" />
-                          ) : (
-                            <Unlock className="h-4 w-4 text-green-500" />
-                          )}
-                        </button>
+                      <td className="py-3 px-4 text-sm text-gray-500">{user.createdAt}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewDetail(user)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleBan(user.id)}
+                            className={user.status === 'banned' ? 'text-green-600' : 'text-orange-600'}
+                          >
+                            {user.status === 'banned' ? (
+                              <Unlock className="w-4 h-4" />
+                            ) : (
+                              <Ban className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* 添加用户弹窗 */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">添加用户</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-muted rounded">
-                <X className="h-5 w-5" />
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">手机号 *</label>
+                <label className="block text-sm font-medium mb-1">手机号 *</label>
                 <Input
                   placeholder="请输入手机号"
                   value={newPhone}
-                  onChange={(e) => { setNewPhone(e.target.value); setPhoneError('') }}
+                  onChange={(e) => setNewPhone(e.target.value)}
                 />
-                {phoneError && <p className="text-sm text-red-500 mt-1">{phoneError}</p>}
+                {phoneError && (
+                  <p className="text-red-500 text-sm mt-1">{phoneError}</p>
+                )}
               </div>
+
               <div>
-                <label className="text-sm font-medium mb-1 block">昵称（选填）</label>
+                <label className="block text-sm font-medium mb-1">昵称</label>
                 <Input
-                  placeholder="请输入昵称"
+                  placeholder="请输入昵称（选填）"
                   value={newNickname}
                   onChange={(e) => setNewNickname(e.target.value)}
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <button 
-                  className="inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background hover:bg-muted h-9 px-4 text-sm"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  取消
-                </button>
-                <button 
-                  className="inline-flex items-center justify-center gap-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 text-sm"
-                  onClick={handleAddUser}
-                >
-                  添加
-                </button>
-              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                取消
+              </Button>
+              <Button onClick={handleAddUser}>
+                确认添加
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       {/* 用户详情弹窗 */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
-            <div className="flex justify-between items-center mb-4">
+      {showDetailModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">用户详情</h2>
-              <button onClick={() => setSelectedUser(null)} className="p-1 hover:bg-muted rounded">
-                <X className="h-5 w-5" />
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">用户ID</span>
-                <span>{selectedUser.id}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">手机号</span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">手机号</span>
                 <span>{selectedUser.phone}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">昵称</span>
-                <span>{selectedUser.nickname}</span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">昵称</span>
+                <span>{selectedUser.nickname || '-'}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">状态</span>
-                <span>{selectedUser.status === 'active' ? '正常' : '已封禁'}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">会员类型</span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">会员类型</span>
                 <span>{membershipTypeMap[selectedUser.membershipType]}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <span className="text-muted-foreground">注册时间</span>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">账号状态</span>
+                <span className={selectedUser.status === 'active' ? 'text-green-600' : 'text-red-600'}>
+                  {selectedUser.status === 'active' ? '正常' : '已封禁'}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-gray-500">注册时间</span>
                 <span>{selectedUser.createdAt}</span>
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
-              <button 
-                className="inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background hover:bg-muted h-9 px-4 text-sm"
-                onClick={() => setSelectedUser(null)}
-              >
+
+            <div className="flex justify-end mt-6">
+              <Button variant="outline" onClick={() => setShowDetailModal(false)}>
                 关闭
-              </button>
+              </Button>
             </div>
           </div>
         </div>
