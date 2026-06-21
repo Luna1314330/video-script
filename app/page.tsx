@@ -15,16 +15,10 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
-    // 检查登录状态
-    const checkAuth = async () => {
-      try {
-        const { getSupabaseClient } = await import('@/storage/database/supabase-client')
-        const supabase = getSupabaseClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        setIsLoggedIn(!!session)
-      } catch (e) {
-        setIsLoggedIn(false)
-      }
+    // 检查 localStorage 中的 Supabase session
+    const checkAuth = () => {
+      const sbSession = localStorage.getItem('sb-access-token')
+      setIsLoggedIn(!!sbSession)
     }
     checkAuth()
   }, [])
