@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Search, Ban, Unlock, Eye, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -21,13 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+
 import {
   Dialog,
   DialogContent,
@@ -136,7 +130,6 @@ function UserDetailDialog({
 }
 
 export default function UsersPage() {
-  const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -146,10 +139,6 @@ export default function UsersPage() {
   const [newPhone, setNewPhone] = useState('')
   const [newNickname, setNewNickname] = useState('')
   const [users, setUsers] = useState(mockUsers)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -234,14 +223,6 @@ export default function UsersPage() {
     setAddDialogOpen(true)
   }
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -267,16 +248,15 @@ export default function UsersPage() {
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="筛选状态" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="active">正常</SelectItem>
-                  <SelectItem value="banned">已封禁</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                value={statusFilter}
+                onChange={(e) => handleStatusFilter(e.target.value)}
+                className="h-9 w-[120px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="all">全部状态</option>
+                <option value="active">正常</option>
+                <option value="banned">已封禁</option>
+              </select>
             </div>
           </div>
         </CardHeader>

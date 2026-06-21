@@ -1,125 +1,88 @@
 'use client'
 
 import * as React from 'react'
-import { Dialog } from '@base-ui/react/dialog'
 import { X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-const DialogRoot = Dialog.Root
+interface DialogProps {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: React.ReactNode
+}
 
-const DialogTrigger = Dialog.Trigger
+interface DialogContentProps {
+  className?: string
+  children?: React.ReactNode
+  onClose?: () => void
+}
 
-const DialogClose = Dialog.Close
+const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+  if (!open) return null
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div 
+        className="fixed inset-0 bg-black/50" 
+        onClick={() => onOpenChange?.(false)}
+      />
+      <div className="relative z-50 bg-background rounded-lg shadow-lg max-w-lg w-full mx-4">
+        {children}
+      </div>
+    </div>
+  )
+}
 
-const DialogBackdrop = React.forwardRef<
-  React.ComponentRef<typeof Dialog.Backdrop>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Backdrop>
->(({ className, ...props }, ref) => (
-  <Dialog.Backdrop
-    ref={ref}
-    className={cn(
-      'fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-      className
-    )}
-    {...props}
-  />
-))
-DialogBackdrop.displayName = 'DialogBackdrop'
+const DialogTrigger = ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children?: React.ReactNode }) => {
+  return (
+    <button type="button" onClick={onClick} {...props}>
+      {children}
+    </button>
+  )
+}
 
-const DialogPopup = React.forwardRef<
-  React.ComponentRef<typeof Dialog.Popup>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Popup>
->(({ className, ...props }, ref) => (
-  <Dialog.Popup
-    ref={ref}
-    className={cn(
-      'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
-      className
-    )}
-    {...props}
-  />
-))
-DialogPopup.displayName = 'DialogPopup'
+const DialogContent = ({ className, children, onClose }: DialogContentProps) => {
+  return (
+    <div className={cn('p-6', className)}>
+      {children}
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
 
-const DialogHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      'flex flex-col space-y-1.5 text-center sm:text-left',
-      className
-    )}
-    {...props}
-  />
+const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex flex-col space-y-1.5 text-center sm:text-left mb-4', className)} {...props} />
 )
-DialogHeader.displayName = 'DialogHeader'
 
-const DialogFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
-      className
-    )}
-    {...props}
-  />
+const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4', className)} {...props} />
 )
-DialogFooter.displayName = 'DialogFooter'
 
 const DialogTitle = React.forwardRef<
-  React.ComponentRef<typeof Dialog.Title>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Title>
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <Dialog.Title
-    ref={ref}
-    className={cn(
-      'text-lg font-semibold leading-none tracking-tight',
-      className
-    )}
-    {...props}
-  />
+  <h2 ref={ref} className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />
 ))
 DialogTitle.displayName = 'DialogTitle'
 
 const DialogDescription = React.forwardRef<
-  React.ComponentRef<typeof Dialog.Description>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Description>
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <Dialog.Description
-    ref={ref}
-    className={cn('text-sm text-muted-foreground', className)}
-    {...props}
-  />
+  <p ref={ref} className={cn('text-sm text-muted-foreground', className)} {...props} />
 ))
 DialogDescription.displayName = 'DialogDescription'
 
-const DialogContent = React.forwardRef<
-  React.ComponentRef<typeof Dialog.Popup>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Popup>
->(({ className, children, ...props }, ref) => (
-  <DialogRoot>
-    <DialogBackdrop />
-    <DialogPopup ref={ref} className={className} {...props}>
-      {children}
-      <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogClose>
-    </DialogPopup>
-  </DialogRoot>
-))
-DialogContent.displayName = 'DialogContent'
-
 export {
-  DialogRoot as Dialog,
+  Dialog,
   DialogTrigger,
-  DialogClose,
-  DialogBackdrop,
-  DialogPopup,
   DialogContent,
   DialogHeader,
   DialogFooter,
