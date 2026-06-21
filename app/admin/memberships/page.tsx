@@ -68,20 +68,20 @@ function ActivateMembershipDialog({
   onClose: () => void
   onSuccess: (userId: string, type: Membership['type']) => void
 }) {
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [searchPhone, setSearchPhone] = useState('')
   const [membershipType, setMembershipType] = useState<Membership['type']>('monthly')
 
-  const availableUsers = mockUsers.filter(
-    (u) => u.status === 'active' && !u.membership?.status === 'active'
+  const matchedUser = mockUsers.find(
+    (u) => u.phone.includes(searchPhone) && u.status === 'active'
   )
 
   const handleSubmit = () => {
-    if (!selectedUserId) {
-      toast.error('请选择用户')
+    if (!searchPhone || !matchedUser) {
+      toast.error('请输入正确的手机号')
       return
     }
-    onSuccess(selectedUserId, membershipType)
-    setSelectedUserId('')
+    onSuccess(matchedUser.id, membershipType)
+    setSearchPhone('')
     setMembershipType('monthly')
     onClose()
   }
@@ -95,21 +95,20 @@ function ActivateMembershipDialog({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">选择用户</label>
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger>
-                <SelectValue placeholder="请选择用户" />
-              </SelectTrigger>
-              <SelectContent>
-                {mockUsers
-                  .filter((u) => u.status === 'active')
-                  .map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.nickname} ({user.phone})
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium">搜索用户</label>
+            <Input
+              placeholder="输入手机号搜索"
+              value={searchPhone}
+              onChange={(e) => setSearchPhone(e.target.value)}
+            />
+            {searchPhone && matchedUser && (
+              <p className="text-sm text-green-600">
+                找到用户：{matchedUser.nickname} ({matchedUser.phone})
+              </p>
+            )}
+            {searchPhone && !matchedUser && (
+              <p className="text-sm text-red-500">未找到该用户</p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">会员类型</label>
@@ -123,17 +122,17 @@ function ActivateMembershipDialog({
               <SelectContent>
                 {mockSystemSettings.membership.monthly.enabled && (
                   <SelectItem value="monthly">
-                    月卡 - ¥{mockSystemSettings.membership.monthly.price}
+                    月度 - ¥{mockSystemSettings.membership.monthly.price}
                   </SelectItem>
                 )}
                 {mockSystemSettings.membership.quarterly.enabled && (
                   <SelectItem value="quarterly">
-                    季卡 - ¥{mockSystemSettings.membership.quarterly.price}
+                    季度 - ¥{mockSystemSettings.membership.quarterly.price}
                   </SelectItem>
                 )}
                 {mockSystemSettings.membership.yearly.enabled && (
                   <SelectItem value="yearly">
-                    年卡 - ¥{mockSystemSettings.membership.yearly.price}
+                    年度 - ¥{mockSystemSettings.membership.yearly.price}
                   </SelectItem>
                 )}
               </SelectContent>
@@ -144,7 +143,9 @@ function ActivateMembershipDialog({
           <Button variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button onClick={handleSubmit}>确认开通</Button>
+          <Button onClick={handleSubmit} disabled={!matchedUser}>
+            确认开通
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
