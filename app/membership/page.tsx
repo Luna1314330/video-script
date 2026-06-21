@@ -13,21 +13,17 @@ interface MembershipPlan {
   recommended?: boolean
 }
 
+// 默认套餐数据
+const defaultPlans: MembershipPlan[] = [
+  { id: 'monthly', name: '月度会员', price: 39, originalPrice: 39, features: ['每日生成 10 次', '优先使用 AI', '专属客服支持'] },
+  { id: 'quarterly', name: '季度会员', price: 99, originalPrice: 99, features: ['每日生成 20 次', '优先使用 AI', '专属客服支持', '赠送 50 次'], recommended: true },
+  { id: 'yearly', name: '年度会员', price: 299, originalPrice: 299, features: ['每日生成 50 次', '优先使用 AI', '专属客服支持', '赠送 200 次', '专属活动参与权'] }
+]
+
 export default function MembershipPage() {
   const router = useRouter()
-  const [plans, setPlans] = useState<MembershipPlan[]>([])
-  const [loading, setLoading] = useState(true)
+  const [plans] = useState<MembershipPlan[]>(defaultPlans)
   const [purchasing, setPurchasing] = useState<string | null>(null)
-
-  useEffect(() => {
-    // 使用默认套餐
-    setPlans([
-      { id: 'monthly', name: '月度会员', price: 39, originalPrice: 39, features: ['每日生成 10 次', '优先使用 AI', '专属客服支持'] },
-      { id: 'quarterly', name: '季度会员', price: 99, originalPrice: 99, features: ['每日生成 20 次', '优先使用 AI', '专属客服支持', '赠送 50 次'], recommended: true },
-      { id: 'yearly', name: '年度会员', price: 299, originalPrice: 299, features: ['每日生成 50 次', '优先使用 AI', '专属客服支持', '赠送 200 次', '专属活动参与权'] }
-    ])
-    setLoading(false)
-  }, [router])
 
   const handlePurchase = async (planId: string, price: number) => {
     const token = localStorage.getItem('token')
@@ -65,14 +61,6 @@ export default function MembershipPage() {
     } finally {
       setPurchasing(null)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">加载中...</p>
-      </div>
-    )
   }
 
   return (
