@@ -24,7 +24,10 @@ export default function ProfileClient() {
             {menuItems.map((item) => (
               <div
                 key={item.key}
-                onClick={() => setActiveMenu(item.key)}
+                onClick={() => {
+                  console.log("点击菜单:", item.label, "key:", item.key)
+                  setActiveMenu(item.key)
+                }}
                 className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
                   activeMenu === item.key
                     ? "bg-blue-50 text-blue-600 border-r-2 border-blue-600"
