@@ -15,8 +15,11 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('表单提交触发')
+    console.log('username:', username)
+    console.log('password:', password)
     setError('')
 
     if (!username || !password) {
@@ -25,9 +28,11 @@ export default function LoginPage() {
     }
 
     setLoading(true)
+    console.log('开始验证')
     
     // 直接验证
-    const success = await login(username, password)
+    const success = login(username, password)
+    console.log('验证结果:', success)
     
     if (success) {
       router.push('/admin')
