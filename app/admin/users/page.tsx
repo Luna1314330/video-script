@@ -50,11 +50,26 @@ export default function UsersPage() {
   }, [users, searchQuery])
 
   const handleAddUser = () => {
-    if (!newPhone.trim()) return
+    // 手机号验证：必须是11位数字
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!newPhone.trim()) {
+      alert('请输入手机号')
+      return
+    }
+    if (!phoneRegex.test(newPhone)) {
+      alert('手机号格式不正确，请输入11位有效手机号')
+      return
+    }
+    // 检查手机号是否已存在
+    if (users.some(u => u.phone === newPhone)) {
+      alert('该手机号已注册')
+      return
+    }
     const newUser: User = {
       id: String(users.length + 1),
       phone: newPhone,
-      nickname: newNickname || `用户${newPhone.slice(-4)}`,
+      // 昵称为空时使用完整手机号
+      nickname: newNickname.trim() || newPhone,
       status: 'active',
       membershipType: 'none',
       createdAt: new Date().toISOString().split('T')[0],
