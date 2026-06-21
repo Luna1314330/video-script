@@ -11,12 +11,47 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+
+  // 错误提示状态
+  const [phoneError, setPhoneError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+
+  // 验证手机号格式
+  const validatePhone = (value: string) => {
+    if (!value) {
+      setPhoneError('请输入手机号')
+      return false
+    }
+    if (!/^1[3-9]\d{9}$/.test(value)) {
+      setPhoneError('请输入正确的手机号格式')
+      return false
+    }
+    setPhoneError('')
+    return true
+  }
+
+  // 验证密码
+  const validatePassword = (value: string) => {
+    if (!value) {
+      setPasswordError('请输入密码')
+      return false
+    }
+    setPasswordError('')
+    return true
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // 验证所有字段
+    const isPhoneValid = validatePhone(phone)
+    const isPasswordValid = validatePassword(password)
+
+    if (!isPhoneValid || !isPasswordValid) {
+      return
+    }
+
     setLoading(true)
-    setError('')
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -28,7 +63,7 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || '登录失败')
+        setPhoneError(data.error || '登录失败')
         return
       }
 
@@ -39,7 +74,7 @@ export default function LoginPage() {
       // 跳转首页
       router.push('/')
     } catch {
-      setError('网络错误，请重试')
+      setPhoneError('网络错误，请重试')
     } finally {
       setLoading(false)
     }
@@ -56,11 +91,6 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-md">
-                {error}
-              </div>
-            )}
             
             <div className="space-y-2">
               <label className="text-sm font-medium">手机号</label>
@@ -68,10 +98,16 @@ export default function LoginPage() {
                 type="tel"
                 placeholder="请输入手机号"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value)
+                  if (phoneError) validatePhone(e.target.value)
+                }}
+                onBlur={() => validatePhone(phone)}
                 maxLength={11}
-                required
               />
+              {phoneError && (
+                <p className="text-red-500 text-xs">{phoneError}</p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -80,9 +116,15 @@ export default function LoginPage() {
                 type="password"
                 placeholder="请输入密码"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (passwordError) validatePassword(e.target.value)
+                }}
+                onBlur={() => validatePassword(password)}
               />
+              {passwordError && (
+                <p className="text-red-500 text-xs">{passwordError}</p>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
