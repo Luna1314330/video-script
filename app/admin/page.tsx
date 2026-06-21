@@ -238,9 +238,9 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-4xl font-bold text-green-600">
-                {((stats.totalMembers / stats.totalUsers) * 100).toFixed(1)}%
+                {stats.totalMembers}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">会员转化率</p>
+              <p className="mt-1 text-sm text-muted-foreground">总会员数</p>
             </div>
           </CardContent>
         </Card>
@@ -248,9 +248,9 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-4xl font-bold text-blue-600">
-                ¥{(stats.todayRevenue / stats.todayOrders).toFixed(0)}
+                ¥{stats.totalRevenue}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">客单价</p>
+              <p className="mt-1 text-sm text-muted-foreground">总收入</p>
             </div>
           </CardContent>
         </Card>
