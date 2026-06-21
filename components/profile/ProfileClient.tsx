@@ -179,7 +179,7 @@ function ScriptHistory() {
       generatedScript: "【特写】手拿口红的画面..." 
     },
   ]
-  const [selectedScript, setSelectedScript] = useState<typeof scripts[0] | null>(null)
+  const [selectedScript, setSelectedScript] = useState<typeof scripts[0] | null>(scripts[0] || null)
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
