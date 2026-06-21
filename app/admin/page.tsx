@@ -224,27 +224,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">近7天用户增长</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChart data={userChartData} maxValue={maxUserCount} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">近7天收入趋势</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LineChart data={revenueChartData} maxValue={maxRevenue} />
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Quick stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
