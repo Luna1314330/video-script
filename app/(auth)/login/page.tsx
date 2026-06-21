@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,45 +12,49 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-
-  // 错误提示状态
   const [phoneError, setPhoneError] = useState('')
   const [passwordError, setPasswordError] = useState('')
 
-  // 验证手机号格式
-  const validatePhone = (value: string) => {
-    if (!value) {
+  // 验证手机号
+  const handlePhoneBlur = () => {
+    if (!phone) {
       setPhoneError('请输入手机号')
-      return false
-    }
-    if (!/^1[3-9]\d{9}$/.test(value)) {
+    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
       setPhoneError('请输入正确的手机号格式')
-      return false
+    } else {
+      setPhoneError('')
     }
-    setPhoneError('')
-    return true
   }
 
   // 验证密码
-  const validatePassword = (value: string) => {
-    if (!value) {
+  const handlePasswordBlur = () => {
+    if (!password) {
       setPasswordError('请输入密码')
-      return false
+    } else {
+      setPasswordError('')
     }
-    setPasswordError('')
-    return true
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // 验证所有字段
-    const isPhoneValid = validatePhone(phone)
-    const isPasswordValid = validatePassword(password)
+    let hasError = false
 
-    if (!isPhoneValid || !isPasswordValid) {
-      return
+    if (!phone) {
+      setPhoneError('请输入手机号')
+      hasError = true
+    } else if (!/^1[3-9]\d{9}$/.test(phone)) {
+      setPhoneError('请输入正确的手机号格式')
+      hasError = true
     }
+
+    if (!password) {
+      setPasswordError('请输入密码')
+      hasError = true
+    }
+
+    if (hasError) return
 
     setLoading(true)
 
@@ -63,81 +68,80 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setPhoneError(data.error || '登录失败')
+        if (data.error?.includes('密码')) {
+          setPasswordError(data.error)
+        } else {
+          setPhoneError(data.error || '登录失败')
+        }
+        setLoading(false)
         return
       }
 
-      // 保存 token
+      // 登录成功，保存 token 并跳转
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
-      
-      // 跳转首页
-      router.push('/')
+      router.push('/dashboard')
     } catch {
       setPhoneError('网络错误，请重试')
-    } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">登录</CardTitle>
-          <CardDescription className="text-center">
-            输入手机号和密码登录
-          </CardDescription>
+          <CardDescription className="text-center">输入手机号和密码登录</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            
             <div className="space-y-2">
-              <label className="text-sm font-medium">手机号</label>
+              <label htmlFor="phone" className="text-sm font-medium">手机号</label>
               <Input
+                id="phone"
                 type="tel"
                 placeholder="请输入手机号"
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value)
-                  if (phoneError) validatePhone(e.target.value)
+                  setPhoneError('')
                 }}
-                onBlur={(e) => validatePhone(e.target.value)}
-                maxLength={11}
+                onBlur={handlePhoneBlur}
+                className="h-11"
               />
               {phoneError && (
-                <p className="text-red-500 text-xs">{phoneError}</p>
+                <p className="text-red-500 text-sm">{phoneError}</p>
               )}
             </div>
-            
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">密码</label>
+              <label htmlFor="password" className="text-sm font-medium">密码</label>
               <Input
+                id="password"
                 type="password"
                 placeholder="请输入密码"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
-                  if (passwordError) validatePassword(e.target.value)
+                  setPasswordError('')
                 }}
-                onBlur={(e) => validatePassword(e.target.value)}
+                onBlur={handlePasswordBlur}
+                className="h-11"
               />
               {passwordError && (
-                <p className="text-red-500 text-xs">{passwordError}</p>
+                <p className="text-red-500 text-sm">{passwordError}</p>
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
               {loading ? '登录中...' : '登录'}
             </Button>
-
-            <div className="text-center text-sm">
-              还没有账号？{' '}
-              <a href="/register" className="text-blue-600 hover:underline">
-                立即注册
-              </a>
-            </div>
           </form>
+
+          <p className="mt-4 text-center text-sm">
+            还没有账号？<Link href="/register" className="text-blue-600 hover:underline">立即注册</Link>
+          </p>
         </CardContent>
       </Card>
     </div>
