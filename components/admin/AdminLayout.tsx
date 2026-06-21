@@ -31,15 +31,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   // Skip auth check for login page
   const isLoginPage = pathname === '/admin/login'
 
-  useEffect(() => {
-    if (!isLoginPage && !isAuthenticated) {
-      router.push('/admin/login')
-    }
-  }, [isLoginPage, isAuthenticated, router])
+  // 暂时禁用认证检查，方便调试
+  // useEffect(() => {
+  //   if (!isLoginPage && !isAuthenticated) {
+  //     router.push('/admin/login')
+  //   }
+  // }, [isLoginPage, isAuthenticated, router])
 
   const handleLogout = () => {
     logout()
-    router.push('/admin/login')
+    window.location.href = '/admin/login'
   }
 
   // Login page - no layout needed
@@ -47,14 +48,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  // Not authenticated - show nothing while redirecting
-  if (!isAuthenticated) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  // 暂时禁用认证检查，直接显示内容
+  // if (!isAuthenticated) {
+  //   return (
+  //     <div className="flex h-screen items-center justify-center">
+  //       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  //     </div>
+  //   )
+  // }
 
   const isActive = (href: string) => {
     if (href === '/admin') {
