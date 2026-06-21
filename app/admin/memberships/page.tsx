@@ -43,62 +43,135 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { mockMemberships, mockUsers, mockSystemSettings, type Membership, type User } from '@/lib/admin-data'
 
 const ITEMS_PER_PAGE = 10
 
-const membershipTypeMap = {
+const membershipTypeMap: Record<string, string> = {
   monthly: '月卡',
   quarterly: '季卡',
   yearly: '年卡',
 }
 
-const statusMap = {
-  active: { label: '有效', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
-  expired: { label: '已过期', variant: 'secondary' as const, className: 'bg-gray-100 text-gray-800' },
-  cancelled: { label: '已取消', variant: 'secondary' as const, className: 'bg-gray-100 text-gray-800' },
+const statusMap: Record<string, { label: string; className: string }> = {
+  active: { label: '有效', className: 'bg-green-100 text-green-800' },
+  expired: { label: '已过期', className: 'bg-gray-100 text-gray-800' },
+  cancelled: { label: '已取消', className: 'bg-gray-100 text-gray-800' },
+}
+
+interface Membership {
+  id: string
+  userId: string
+  phone: string
+  nickname: string
+  type: string
+  startDate: string
+  expireDate: string
+  status: string
+  createdAt: string
+}
+
+interface Settings {
+  membership?: {
+    monthly?: { price: number; enabled: boolean }
+    quarterly?: { price: number; enabled: boolean }
+    yearly?: { price: number; enabled: boolean }
+  }
 }
 
 function ActivateMembershipDialog({
   open,
   onClose,
   onSuccess,
+  settings,
 }: {
   open: boolean
   onClose: () => void
-  onSuccess: (userId: string, type: Membership['type']) => void
+  onSuccess: () => void
+  settings: Settings
 }) {
   const [searchPhone, setSearchPhone] = useState('')
-  const [membershipType, setMembershipType] = useState<Membership['type']>('monthly')
+  const [membershipType, setMembershipType] = useState('monthly')
+  const [foundUser, setFoundUser] = useState<{ id: string; phone: string; nickname: string } | null>(null)
+  const [searching, setSearching] = useState(false)
 
   const getMembershipLabel = (type: string) => {
-    const prices = mockSystemSettings.membership
+    const prices = settings?.membership || {}
     switch (type) {
-      case 'monthly': return `月度 - ¥${prices.monthly.price}`
-      case 'quarterly': return `季度 - ¥${prices.quarterly.price}`
-      case 'yearly': return `年度 - ¥${prices.yearly.price}`
+      case 'monthly': return `月度 - ¥${prices.monthly?.price || 39}`
+      case 'quarterly': return `季度 - ¥${prices.quarterly?.price || 99}`
+      case 'yearly': return `年度 - ¥${prices.yearly?.price || 299}`
       default: return type
     }
   }
 
-  const matchedUser = mockUsers.find(
-    (u) => u.phone.includes(searchPhone) && u.status === 'active'
-  )
+  // 获取可选的会员类型
+  const availableTypes = useMemo(() => {
+    const prices = settings?.membership || {}
+    return Object.entries(prices)
+      .filter(([_, config]: [string, any]) => config.enabled !== false)
+      .map(([key]) => key)
+  }, [settings])
 
-  const handleSubmit = () => {
-    if (!searchPhone || !matchedUser) {
+  // 搜索用户
+  useEffect(() => {
+    if (!searchPhone || searchPhone.length < 11) {
+      setFoundUser(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch('/api/admin/users')
+        const data = await res.json()
+        if (data.success) {
+          const user = data.data.find((u: any) => 
+            u.phone === searchPhone || u.phone.includes(searchPhone)
+          )
+          setFoundUser(user ? { id: user.id, phone: user.phone, nickname: user.nickname } : null)
+        }
+      } catch (error) {
+        console.error('搜索用户失败:', error)
+        setFoundUser(null)
+      } finally {
+        setSearching(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchPhone])
+
+  const handleSubmit = async () => {
+    if (!foundUser) {
       toast.error('请输入正确的手机号')
       return
     }
-    onSuccess(matchedUser.id, membershipType)
-    setSearchPhone('')
-    setMembershipType('monthly')
-    onClose()
+
+    try {
+      const res = await fetch('/api/admin/memberships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: foundUser.id, type: membershipType }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`用户 ${foundUser.nickname} 的${membershipTypeMap[membershipType]}已开通`)
+        setSearchPhone('')
+        setMembershipType('monthly')
+        onClose()
+        onSuccess()
+      } else {
+        toast.error(data.error || '开通失败')
+      }
+    } catch (error) {
+      console.error('开通会员失败:', error)
+      toast.error('开通失败，请重试')
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>开通会员</DialogTitle>
           <DialogDescription>为用户手动开通会员服务</DialogDescription>
@@ -111,48 +184,35 @@ function ActivateMembershipDialog({
               value={searchPhone}
               onChange={(e) => setSearchPhone(e.target.value)}
             />
-            {searchPhone && matchedUser && (
+            {searching && <p className="text-sm text-muted-foreground">搜索中...</p>}
+            {foundUser && (
               <p className="text-sm text-green-600">
-                找到用户：{matchedUser.nickname} ({matchedUser.phone})
+                找到用户：{foundUser.nickname || foundUser.phone}
               </p>
             )}
-            {searchPhone && !matchedUser && (
+            {!searching && searchPhone.length >= 11 && !foundUser && (
               <p className="text-sm text-red-500">未找到该用户</p>
             )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">会员类型</label>
-            <Select value={membershipType} onValueChange={(v) => setMembershipType(v as Membership['type'])}>
+            <Select value={membershipType} onValueChange={setMembershipType}>
               <SelectTrigger className="w-full">
                 <SelectValue>{getMembershipLabel(membershipType)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {mockSystemSettings.membership.monthly.enabled && (
-                  <SelectItem value="monthly">
-                    月度 - ¥{mockSystemSettings.membership.monthly.price}
+                {availableTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {getMembershipLabel(type)}
                   </SelectItem>
-                )}
-                {mockSystemSettings.membership.quarterly.enabled && (
-                  <SelectItem value="quarterly">
-                    季度 - ¥{mockSystemSettings.membership.quarterly.price}
-                  </SelectItem>
-                )}
-                {mockSystemSettings.membership.yearly.enabled && (
-                  <SelectItem value="yearly">
-                    年度 - ¥{mockSystemSettings.membership.yearly.price}
-                  </SelectItem>
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={!matchedUser}>
-            确认开通
-          </Button>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button onClick={handleSubmit} disabled={!foundUser}>确认开通</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -160,23 +220,47 @@ function ActivateMembershipDialog({
 }
 
 export default function MembershipsPage() {
-  const [mounted, setMounted] = useState(false)
+  const [memberships, setMemberships] = useState<Membership[]>([])
+  const [settings, setSettings] = useState<Settings>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [activateDialogOpen, setActivateDialogOpen] = useState(false)
-  const [memberships, setMemberships] = useState(mockMemberships)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setMounted(true)
+    fetchData()
   }, [])
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [membershipsRes, settingsRes] = await Promise.all([
+        fetch('/api/admin/memberships'),
+        fetch('/api/admin/settings'),
+      ])
+      const membershipsData = await membershipsRes.json()
+      const settingsData = await settingsRes.json()
+      
+      if (membershipsData.success) {
+        setMemberships(membershipsData.data)
+      }
+      if (settingsData.success) {
+        setSettings(settingsData.data)
+      }
+    } catch (error) {
+      console.error('获取数据失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredMemberships = useMemo(() => {
     return memberships.filter((m) => {
       const matchesSearch =
         searchQuery === '' ||
-        m.userPhone.includes(searchQuery) ||
-        m.userNickname.toLowerCase().includes(searchQuery.toLowerCase())
+        m.phone.includes(searchQuery) ||
+        m.nickname.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === 'all' || m.status === statusFilter
 
@@ -200,62 +284,36 @@ export default function MembershipsPage() {
     setCurrentPage(1)
   }
 
-  const handleToggleMembership = (membership: Membership) => {
+  const handleToggleMembership = async (membership: Membership) => {
     const newStatus = membership.status === 'active' ? 'cancelled' : 'active'
     const action = newStatus === 'cancelled' ? '关闭' : '开通'
 
-    setMemberships((prev) =>
-      prev.map((m) =>
-        m.id === membership.id ? { ...m, status: newStatus } : m
-      )
-    )
-    toast.success(`用户 ${membership.userNickname} 的会员已${action}`)
+    try {
+      const res = await fetch('/api/admin/memberships', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: membership.id, status: newStatus }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMemberships((prev) =>
+          prev.map((m) =>
+            m.id === membership.id ? { ...m, status: newStatus } : m
+          )
+        )
+        toast.success(`用户 ${membership.nickname} 的会员已${action}`)
+      }
+    } catch (error) {
+      console.error('更新会员状态失败:', error)
+      toast.error('操作失败，请重试')
+    }
   }
 
-  const handleActivateMembership = (userId: string, type: Membership['type']) => {
-    const user = mockUsers.find((u) => u.id === userId)
-    if (!user) return
-
-    const now = new Date()
-    const expireDate = new Date()
-    if (type === 'monthly') {
-      expireDate.setMonth(expireDate.getMonth() + 1)
-    } else if (type === 'quarterly') {
-      expireDate.setMonth(expireDate.getMonth() + 3)
-    } else {
-      expireDate.setFullYear(expireDate.getFullYear() + 1)
-    }
-
-    const newMembership: Membership = {
-      id: `MB${Date.now()}`,
-      userId,
-      userPhone: user.phone,
-      userNickname: user.nickname,
-      type,
-      price: mockSystemSettings.membership[type].price,
-      startAt: now.toISOString().split('T')[0],
-      expireAt: expireDate.toISOString().split('T')[0],
-      status: 'active',
-      autoRenew: false,
-    }
-
-    setMemberships((prev) => [...prev, newMembership])
-    toast.success(`用户 ${user.nickname} 的${membershipTypeMap[type]}已开通`)
-  }
-
-  const isExpiringSoon = (expireAt: string) => {
-    const expire = new Date(expireAt)
+  const isExpiringSoon = (expireDate: string) => {
+    const expire = new Date(expireDate)
     const now = new Date()
     const diffDays = Math.ceil((expire.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     return diffDays <= 7 && diffDays > 0
-  }
-
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <span className="text-gray-500">加载中...</span>
-      </div>
-    )
   }
 
   return (
@@ -313,7 +371,13 @@ export default function MembershipsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedMemberships.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    加载中...
+                  </TableCell>
+                </TableRow>
+              ) : paginatedMemberships.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
                     <p className="text-muted-foreground">暂无数据</p>
@@ -322,50 +386,42 @@ export default function MembershipsPage() {
               ) : (
                 paginatedMemberships.map((membership) => (
                   <TableRow key={membership.id}>
-                    <TableCell className="font-medium">
-                      {membership.userNickname}
+                    <TableCell className="font-medium">{membership.nickname}</TableCell>
+                    <TableCell>{membership.phone}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{membershipTypeMap[membership.type]}</Badge>
                     </TableCell>
-                    <TableCell>{membership.userPhone}</TableCell>
+                    <TableCell className="text-muted-foreground">{membership.startDate}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">
-                          {membershipTypeMap[membership.type]}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          ¥{membership.price}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {membership.startAt}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{membership.expireAt}</span>
-                        {membership.status === 'active' &&
-                          isExpiringSoon(membership.expireAt) && (
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                          )}
+                        <span>{membership.expireDate}</span>
+                        {membership.status === 'active' && isExpiringSoon(membership.expireDate) && (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={statusMap[membership.status].variant}
-                        className={statusMap[membership.status].className}
-                      >
-                        {statusMap[membership.status].label}
-                      </Badge>
+                      <span className={`px-2 py-1 rounded text-xs ${statusMap[membership.status]?.className || 'bg-gray-100 text-gray-800'}`}>
+                        {statusMap[membership.status]?.label || membership.status}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="sm"
                         onClick={() => handleToggleMembership(membership)}
+                        className={membership.status === 'active' ? 'text-red-600' : 'text-green-600'}
                       >
                         {membership.status === 'active' ? (
-                          <PowerOff className="h-4 w-4 text-destructive" />
+                          <>
+                            <PowerOff className="h-4 w-4 mr-1" />
+                            关闭
+                          </>
                         ) : (
-                          <Power className="h-4 w-4 text-green-600" />
+                          <>
+                            <Power className="h-4 w-4 mr-1" />
+                            开通
+                          </>
                         )}
                       </Button>
                     </TableCell>
@@ -375,33 +431,27 @@ export default function MembershipsPage() {
             </TableBody>
           </Table>
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                共 {filteredMemberships.length} 条记录，第 {currentPage}/{totalPages} 页
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                  {currentPage} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                第 {currentPage} / {totalPages} 页
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </CardContent>
@@ -410,7 +460,8 @@ export default function MembershipsPage() {
       <ActivateMembershipDialog
         open={activateDialogOpen}
         onClose={() => setActivateDialogOpen(false)}
-        onSuccess={handleActivateMembership}
+        onSuccess={fetchData}
+        settings={settings}
       />
     </div>
   )

@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Plus, Search, Eye, Ban, Unlock, X } from 'lucide-react'
 
 interface User {
@@ -14,13 +15,7 @@ interface User {
   createdAt: string
 }
 
-const mockUsers: User[] = [
-  { id: '1', phone: '138****8001', nickname: '张三', status: 'active', membershipType: 'yearly', createdAt: '2024-01-15' },
-  { id: '2', phone: '138****8002', nickname: '李四', status: 'active', membershipType: 'monthly', createdAt: '2024-02-20' },
-  { id: '3', phone: '138****8003', nickname: '王五', status: 'banned', membershipType: 'none', createdAt: '2024-03-10' },
-]
-
-const membershipTypeMap = {
+const membershipTypeMap: Record<string, string> = {
   monthly: '月卡',
   quarterly: '季卡',
   yearly: '年卡',
@@ -35,10 +30,27 @@ export default function UsersPage() {
   const [newNickname, setNewNickname] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [phoneError, setPhoneError] = useState('')
+  const [loading, setLoading] = useState(true)
 
+  // 从 API 获取用户列表
   useEffect(() => {
-    setUsers(mockUsers)
+    fetchUsers()
   }, [])
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      if (data.success) {
+        setUsers(data.data)
+      }
+    } catch (error) {
+      console.error('获取用户列表失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -50,7 +62,7 @@ export default function UsersPage() {
     })
   }, [users, searchQuery])
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     setPhoneError('')
     // 手机号验证：必须是11位数字
     const phoneRegex = /^1[3-9]\d{9}$/
@@ -62,30 +74,49 @@ export default function UsersPage() {
       setPhoneError('手机号格式不正确，请输入11位有效手机号')
       return
     }
-    // 检查手机号是否已存在
-    if (users.some(u => u.phone === newPhone)) {
-      setPhoneError('该手机号已注册')
-      return
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: newPhone, nickname: newNickname }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        await fetchUsers()
+        setShowAddModal(false)
+        setNewPhone('')
+        setNewNickname('')
+      } else {
+        setPhoneError(data.error || '添加失败')
+      }
+    } catch (error) {
+      console.error('添加用户失败:', error)
+      setPhoneError('添加失败，请重试')
     }
-    const newUser: User = {
-      id: String(users.length + 1),
-      phone: newPhone,
-      // 昵称为空时使用完整手机号
-      nickname: newNickname.trim() || newPhone,
-      status: 'active',
-      membershipType: 'none',
-      createdAt: new Date().toISOString().split('T')[0],
-    }
-    setUsers([newUser, ...users])
-    setShowAddModal(false)
-    setNewPhone('')
-    setNewNickname('')
   }
 
-  const handleToggleBan = (userId: string) => {
-    setUsers(users.map(u => 
-      u.id === userId ? { ...u, status: u.status === 'active' ? 'banned' : 'active' } : u
-    ))
+  const handleToggleBan = async (userId: string) => {
+    const user = users.find(u => u.id === userId)
+    if (!user) return
+    
+    const newStatus = user.status === 'active' ? 'banned' : 'active'
+    
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, status: newStatus }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setUsers(users.map(u => 
+          u.id === userId ? { ...u, status: newStatus } : u
+        ))
+      }
+    } catch (error) {
+      console.error('更新用户状态失败:', error)
+    }
   }
 
   return (
@@ -134,7 +165,13 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                      加载中...
+                    </td>
+                  </tr>
+                ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-8 text-muted-foreground">
                       暂无用户数据

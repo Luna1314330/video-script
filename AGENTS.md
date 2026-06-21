@@ -36,6 +36,12 @@
 │   │   │   └── register/route.ts
 │   │   ├── config/status/
 │   │   ├── memberships/     # 会员 API
+│   │   ├── admin/           # 后台管理 API
+│   │   │   ├── users/route.ts
+│   │   │   ├── memberships/route.ts
+│   │   │   ├── orders/route.ts
+│   │   │   ├── scripts/route.ts
+│   │   │   └── settings/route.ts
 │   │   └── workflow/
 │   │       ├── content-strategy/
 │   │       └── script/
@@ -48,6 +54,7 @@
 │       ├── users/page.tsx   # 用户管理
 │       ├── memberships/page.tsx # 会员管理
 │       ├── orders/page.tsx  # 订单管理
+│       ├── scripts/page.tsx # 脚本历史
 │       └── settings/page.tsx # 系统设置
 ├── components/              # React 组件
 │   ├── steps/               # 工作流步骤组件
@@ -61,8 +68,10 @@
 │   ├── history/             # 历史记录存储
 │   ├── strategy/           # 策略解析
 │   ├── admin-store.ts      # 后台管理状态
-│   ├── admin-data.ts       # 后台 Mock 数据
-│   └── store.ts            # Zustand store
+│   ├── admin-data.ts       # 后台 Mock 数据（部分保留）
+│   ├── store.ts            # Zustand store
+│   ├── supabase.ts         # Supabase 客户端
+│   └── supabase-admin.ts   # Supabase 管理员客户端
 ├── storage/                 # Supabase 数据库
 │   └── database/
 │       ├── supabase-client.ts  # Supabase 客户端
