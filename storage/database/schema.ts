@@ -87,6 +87,7 @@ export const scriptHistory = pgTable(
     product_desc: text("product_desc"),
     shoot_scene: text("shoot_scene"),
     topic: text("topic").notNull(),
+    generated_script: text("generated_script"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [

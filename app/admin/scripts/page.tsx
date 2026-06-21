@@ -216,6 +216,15 @@ export default function ScriptsPage() {
                   {selectedScript.topic}
                 </p>
               </div>
+
+              {selectedScript.generatedScript && (
+                <div>
+                  <p className="text-sm text-muted-foreground">生成的脚本</p>
+                  <pre className="mt-1 p-3 bg-muted rounded-lg whitespace-pre-wrap text-sm">
+                    {selectedScript.generatedScript}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

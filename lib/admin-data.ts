@@ -81,6 +81,7 @@ export interface ScriptHistory {
   productDesc?: string
   shootScene?: string
   topic: string
+  generatedScript?: string
   createdAt: string
 }
 
@@ -269,6 +270,7 @@ export const mockScriptHistory: ScriptHistory[] = [
     productDesc: '采用新鲜牛奶和优质茶叶现场制作',
     shootScene: '店内制作过程',
     topic: '揭秘奶茶店不会告诉你的秘密',
+    generatedScript: '【开场】画面：特写奶茶制作过程\n\n旁白：大家平时喝的奶茶，90%都是用奶茶粉冲泡的！\n\n【转折】画面：切换到我们的手工奶茶店\n\n旁白：但在我们的店里，每一杯都是用真正的新鲜牛奶和优质茶叶现场制作的。\n\n【产品展示】画面：展示原料和制作过程\n\n旁白：我们的茶叶来自福建安溪，每天下午新鲜配送。牛奶选用的是某某品牌纯牛奶。\n\n【结尾】画面：店铺门头和优惠信息\n\n旁白：现在进店消费，全场八折！地址就在...',
     createdAt: '2024-03-21 14:30:00',
   },
   {
@@ -279,6 +281,7 @@ export const mockScriptHistory: ScriptHistory[] = [
     productName: '防晒霜',
     productDesc: 'SPF50+ 防水防汗，适合户外运动',
     topic: '夏天必买的防晒神器',
+    generatedScript: '【场景】户外运动场景\n\n旁白：夏天出门，你还在为防晒发愁吗？\n\n【痛点】画面：阳光强烈照射\n\n旁白：普通防晒霜油腻粘腻，一出汗就花了。\n\n【产品介绍】画面：展示防晒霜\n\n旁白：今天给大家推荐这款SPF50+防晒霜，防水防汗，清爽不油腻。\n\n【使用展示】画面：挤出防晒霜涂抹\n\n旁白：轻轻一抹，3秒成膜，完全不粘腻。\n\n【结尾】画面：产品图\n\n旁白：点击下方链接购买，夏日必备！',
     createdAt: '2024-03-20 10:15:00',
   },
   {
@@ -290,6 +293,7 @@ export const mockScriptHistory: ScriptHistory[] = [
     productDesc: '3-12岁英语启蒙在线课程',
     shootScene: '课堂互动场景',
     topic: '孩子英语启蒙的黄金期',
+    generatedScript: '【开场】画面：孩子学习英语的画面\n\n旁白：3-12岁，是孩子英语启蒙的黄金期。\n\n【问题】画面：家长辅导孩子作业的场景\n\n旁白：很多家长担心自己英语不好，没法教孩子。\n\n【解决方案】画面：在线课程界面\n\n旁白：我们的在线英语课程，专为3-12岁孩子设计，外教一对一辅导。\n\n【效果展示】画面：孩子自信说英语\n\n旁白：3个月后，孩子已经能自信地用英语交流了！\n\n【结尾】画面：优惠信息\n\n旁白：现在报名，享受首月免费！',
     createdAt: '2024-03-19 16:45:00',
   },
   {
@@ -299,6 +303,7 @@ export const mockScriptHistory: ScriptHistory[] = [
     industry: '服装',
     productName: '运动休闲裤',
     topic: '这条裤子让你运动也能很时尚',
+    generatedScript: '【开场】画面：运动场景\n\n旁白：运动时穿的裤子，又土又丑？\n\n【转折】画面：时尚运动风\n\n旁白：这条运动休闲裤，让你运动也能很时尚！\n\n【产品展示】画面：裤子特写\n\n旁白：冰丝面料，透气排汗，高弹不紧绷。侧边撞色设计，时尚感满满。\n\n【搭配展示】画面：多种搭配\n\n旁白：无论是运动健身，还是日常出行，都能轻松驾驭。\n\n【结尾】画面：产品链接\n\n旁白：点击下方链接选购，多色可选！',
     createdAt: '2024-03-18 09:20:00',
   },
 ]
