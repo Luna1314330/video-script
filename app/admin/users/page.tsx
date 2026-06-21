@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Search, Ban, Unlock, Eye, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Search, Ban, Unlock, Eye, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { users as initialUsers } from '@/lib/admin-data'
 import { mockUsers, type User } from '@/lib/admin-data'
 
 const ITEMS_PER_PAGE = 10
@@ -139,6 +140,13 @@ export default function UsersPage() {
   const [newPhone, setNewPhone] = useState('')
   const [newNickname, setNewNickname] = useState('')
   const [users, setUsers] = useState(mockUsers)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // 模拟加载
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500)
+    return () => clearTimeout(timer)
+  }, [])
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -261,7 +269,16 @@ export default function UsersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="relative h-12 w-12">
+                <div className="absolute inset-0 rounded-full border-4 border-muted"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">加载中...</p>
+            </div>
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>用户ID</TableHead>
@@ -330,6 +347,7 @@ export default function UsersPage() {
               )}
             </TableBody>
           </Table>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
