@@ -221,21 +221,33 @@ function ScriptHistory() {
         </div>
       )}
       {selectedScript && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedScript(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">{selectedScript.topic}</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              {selectedScript.industry} | {selectedScript.productName} | {selectedScript.createdAt}
-            </p>
-            <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-              {selectedScript.generatedScript}
-            </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedScript(null)}>
+          <div 
+            className="bg-white rounded-lg w-full max-w-2xl h-[70vh] flex flex-col relative" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 关闭按钮 - 右上角 */}
             <button 
               onClick={() => setSelectedScript(null)} 
-              className="mt-4 w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors z-10"
             >
-              关闭
+              ✕
             </button>
+            
+            {/* 头部信息 */}
+            <div className="p-6 border-b flex-shrink-0">
+              <h3 className="text-lg font-medium text-gray-900 pr-10">{selectedScript.topic}</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {selectedScript.industry} | {selectedScript.productName} | {selectedScript.createdAt}
+              </p>
+            </div>
+            
+            {/* 内容区域 - 可滚动 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                {selectedScript.generatedScript}
+              </div>
+            </div>
           </div>
         </div>
       )}
