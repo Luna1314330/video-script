@@ -85,7 +85,8 @@ export default function MembershipPage() {
             <p className="text-gray-500">暂无可用的会员套餐</p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="flex justify-center">
+          <div className="w-full max-w-sm">
             {plans.map((plan) => (
               <div
                 key={plan.id}
@@ -133,6 +134,7 @@ export default function MembershipPage() {
               </div>
             ))}
           </div>
+        </div>
         )}
 
         {/* Footer */}
