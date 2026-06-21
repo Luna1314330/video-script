@@ -102,7 +102,7 @@ export default function LoginPage() {
                   setPhone(e.target.value)
                   if (phoneError) validatePhone(e.target.value)
                 }}
-                onBlur={() => validatePhone(phone)}
+                onBlur={(e) => validatePhone(e.target.value)}
                 maxLength={11}
               />
               {phoneError && (
@@ -120,7 +120,7 @@ export default function LoginPage() {
                   setPassword(e.target.value)
                   if (passwordError) validatePassword(e.target.value)
                 }}
-                onBlur={() => validatePassword(password)}
+                onBlur={(e) => validatePassword(e.target.value)}
               />
               {passwordError && (
                 <p className="text-red-500 text-xs">{passwordError}</p>

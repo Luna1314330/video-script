@@ -120,7 +120,7 @@ export default function RegisterPage() {
                   setPhone(e.target.value)
                   if (phoneError) validatePhone(e.target.value)
                 }}
-                onBlur={() => validatePhone(phone)}
+                onBlur={(e) => validatePhone(e.target.value)}
                 maxLength={11}
               />
               {phoneError && (
@@ -138,7 +138,7 @@ export default function RegisterPage() {
                   setPassword(e.target.value)
                   if (passwordError) validatePassword(e.target.value)
                 }}
-                onBlur={() => validatePassword(password)}
+                onBlur={(e) => validatePassword(e.target.value)}
               />
               {passwordError && (
                 <p className="text-red-500 text-xs">{passwordError}</p>
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                   setConfirmPassword(e.target.value)
                   if (confirmPasswordError) validateConfirmPassword(e.target.value)
                 }}
-                onBlur={() => validateConfirmPassword(confirmPassword)}
+                onBlur={(e) => validateConfirmPassword(e.target.value)}
               />
               {confirmPasswordError && (
                 <p className="text-red-500 text-xs">{confirmPasswordError}</p>
