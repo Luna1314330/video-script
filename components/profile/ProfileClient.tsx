@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 
 const menuItems = [
   { key: "info", label: "会员信息" },
@@ -11,15 +11,6 @@ const menuItems = [
 
 export default function ProfileClient() {
   const [activeMenu, setActiveMenu] = useState<string>("info")
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return <div className="min-h-screen bg-gray-50 p-8">加载中...</div>
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
