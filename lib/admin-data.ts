@@ -51,11 +51,16 @@ export interface DashboardStats {
   revenueGrowth: { date: string; amount: number }[]
 }
 
+export interface MembershipPlan {
+  price: number
+  enabled: boolean
+}
+
 export interface SystemSettings {
   membership: {
-    monthly: number
-    quarterly: number
-    yearly: number
+    monthly: MembershipPlan
+    quarterly: MembershipPlan
+    yearly: MembershipPlan
   }
   freeGenerations: {
     daily: number
@@ -227,9 +232,9 @@ export const mockDashboardStats: DashboardStats = {
 // Mock system settings
 export const mockSystemSettings: SystemSettings = {
   membership: {
-    monthly: 39,
-    quarterly: 99,
-    yearly: 299,
+    monthly: { price: 39, enabled: true },
+    quarterly: { price: 99, enabled: true },
+    yearly: { price: 299, enabled: true },
   },
   freeGenerations: {
     daily: 3,

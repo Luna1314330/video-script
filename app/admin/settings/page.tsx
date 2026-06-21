@@ -5,6 +5,7 @@ import { Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Card,
   CardContent,
@@ -19,7 +20,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
 
   const handleMembershipPriceChange = (
-    type: keyof typeof settings.membership,
+    type: 'monthly' | 'quarterly' | 'yearly',
     value: string
   ) => {
     const numValue = parseInt(value, 10)
@@ -28,10 +29,29 @@ export default function SettingsPage() {
         ...prev,
         membership: {
           ...prev.membership,
-          [type]: numValue,
+          [type]: {
+            ...prev.membership[type],
+            price: numValue,
+          },
         },
       }))
     }
+  }
+
+  const handleMembershipEnabledChange = (
+    type: 'monthly' | 'quarterly' | 'yearly',
+    enabled: boolean
+  ) => {
+    setSettings((prev) => ({
+      ...prev,
+      membership: {
+        ...prev.membership,
+        [type]: {
+          ...prev.membership[type],
+          enabled,
+        },
+      },
+    }))
   }
 
   const handleFreeGenerationsChange = (value: string) => {
@@ -98,10 +118,19 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-3">
-            <div className="space-y-2">
-              <label htmlFor="monthly-price" className="text-sm font-medium">
-                月卡价格
-              </label>
+            {/* 月卡 */}
+            <div className={`space-y-2 ${!settings.membership.monthly.enabled ? 'opacity-50' : ''}`}>
+              <div className="flex items-center justify-between">
+                <label htmlFor="monthly-price" className="text-sm font-medium">
+                  月卡价格
+                </label>
+                <Switch
+                  checked={settings.membership.monthly.enabled}
+                  onCheckedChange={(checked) =>
+                    handleMembershipEnabledChange('monthly', checked)
+                  }
+                />
+              </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   ¥
@@ -110,11 +139,12 @@ export default function SettingsPage() {
                   id="monthly-price"
                   type="number"
                   min="0"
-                  value={settings.membership.monthly}
+                  value={settings.membership.monthly.price}
                   onChange={(e) =>
                     handleMembershipPriceChange('monthly', e.target.value)
                   }
                   className="pl-7"
+                  disabled={!settings.membership.monthly.enabled}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -122,10 +152,19 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="quarterly-price" className="text-sm font-medium">
-                季卡价格
-              </label>
+            {/* 季卡 */}
+            <div className={`space-y-2 ${!settings.membership.quarterly.enabled ? 'opacity-50' : ''}`}>
+              <div className="flex items-center justify-between">
+                <label htmlFor="quarterly-price" className="text-sm font-medium">
+                  季卡价格
+                </label>
+                <Switch
+                  checked={settings.membership.quarterly.enabled}
+                  onCheckedChange={(checked) =>
+                    handleMembershipEnabledChange('quarterly', checked)
+                  }
+                />
+              </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   ¥
@@ -134,11 +173,12 @@ export default function SettingsPage() {
                   id="quarterly-price"
                   type="number"
                   min="0"
-                  value={settings.membership.quarterly}
+                  value={settings.membership.quarterly.price}
                   onChange={(e) =>
                     handleMembershipPriceChange('quarterly', e.target.value)
                   }
                   className="pl-7"
+                  disabled={!settings.membership.quarterly.enabled}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -146,10 +186,19 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="yearly-price" className="text-sm font-medium">
-                年卡价格
-              </label>
+            {/* 年卡 */}
+            <div className={`space-y-2 ${!settings.membership.yearly.enabled ? 'opacity-50' : ''}`}>
+              <div className="flex items-center justify-between">
+                <label htmlFor="yearly-price" className="text-sm font-medium">
+                  年卡价格
+                </label>
+                <Switch
+                  checked={settings.membership.yearly.enabled}
+                  onCheckedChange={(checked) =>
+                    handleMembershipEnabledChange('yearly', checked)
+                  }
+                />
+              </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   ¥
@@ -158,11 +207,12 @@ export default function SettingsPage() {
                   id="yearly-price"
                   type="number"
                   min="0"
-                  value={settings.membership.yearly}
+                  value={settings.membership.yearly.price}
                   onChange={(e) =>
                     handleMembershipPriceChange('yearly', e.target.value)
                   }
                   className="pl-7"
+                  disabled={!settings.membership.yearly.enabled}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -304,34 +354,62 @@ export default function SettingsPage() {
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 text-left text-sm font-medium">套餐类型</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">状态</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">价格</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">有效期</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">日均价格</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b">
+                <tr className={`border-b ${!settings.membership.monthly.enabled ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3 text-sm">月卡</td>
-                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.monthly}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      settings.membership.monthly.enabled
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {settings.membership.monthly.enabled ? '已启用' : '已禁用'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.monthly.price}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">30 天</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
-                    ¥{(settings.membership.monthly / 30).toFixed(2)}
+                    ¥{(settings.membership.monthly.price / 30).toFixed(2)}
                   </td>
                 </tr>
-                <tr className="border-b">
+                <tr className={`border-b ${!settings.membership.quarterly.enabled ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3 text-sm">季卡</td>
-                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.quarterly}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      settings.membership.quarterly.enabled
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {settings.membership.quarterly.enabled ? '已启用' : '已禁用'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.quarterly.price}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">90 天</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
-                    ¥{(settings.membership.quarterly / 90).toFixed(2)}
+                    ¥{(settings.membership.quarterly.price / 90).toFixed(2)}
                   </td>
                 </tr>
-                <tr>
+                <tr className={!settings.membership.yearly.enabled ? 'opacity-50' : ''}>
                   <td className="px-4 py-3 text-sm">年卡</td>
-                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.yearly}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      settings.membership.yearly.enabled
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {settings.membership.yearly.enabled ? '已启用' : '已禁用'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium">¥{settings.membership.yearly.price}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">365 天</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
-                    ¥{(settings.membership.yearly / 365).toFixed(2)}
+                    ¥{(settings.membership.yearly.price / 365).toFixed(2)}
                   </td>
                 </tr>
               </tbody>

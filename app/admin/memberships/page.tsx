@@ -43,7 +43,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { mockMemberships, mockUsers, type Membership, type User } from '@/lib/admin-data'
+import { mockMemberships, mockUsers, mockSystemSettings, type Membership, type User } from '@/lib/admin-data'
 
 const ITEMS_PER_PAGE = 10
 
@@ -51,12 +51,6 @@ const membershipTypeMap = {
   monthly: '月卡',
   quarterly: '季卡',
   yearly: '年卡',
-}
-
-const membershipTypePriceMap = {
-  monthly: 39,
-  quarterly: 99,
-  yearly: 299,
 }
 
 const statusMap = {
@@ -127,15 +121,21 @@ function ActivateMembershipDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="monthly">
-                  月卡 - ¥{membershipTypePriceMap.monthly}
-                </SelectItem>
-                <SelectItem value="quarterly">
-                  季卡 - ¥{membershipTypePriceMap.quarterly}
-                </SelectItem>
-                <SelectItem value="yearly">
-                  年卡 - ¥{membershipTypePriceMap.yearly}
-                </SelectItem>
+                {mockSystemSettings.membership.monthly.enabled && (
+                  <SelectItem value="monthly">
+                    月卡 - ¥{mockSystemSettings.membership.monthly.price}
+                  </SelectItem>
+                )}
+                {mockSystemSettings.membership.quarterly.enabled && (
+                  <SelectItem value="quarterly">
+                    季卡 - ¥{mockSystemSettings.membership.quarterly.price}
+                  </SelectItem>
+                )}
+                {mockSystemSettings.membership.yearly.enabled && (
+                  <SelectItem value="yearly">
+                    年卡 - ¥{mockSystemSettings.membership.yearly.price}
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -224,7 +224,7 @@ export default function MembershipsPage() {
       userPhone: user.phone,
       userNickname: user.nickname,
       type,
-      price: membershipTypePriceMap[type],
+      price: mockSystemSettings.membership[type].price,
       startAt: now.toISOString().split('T')[0],
       expireAt: expireDate.toISOString().split('T')[0],
       status: 'active',
