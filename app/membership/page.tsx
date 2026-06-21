@@ -15,9 +15,7 @@ interface MembershipPlan {
 
 // 默认套餐数据
 const defaultPlans: MembershipPlan[] = [
-  { id: 'monthly', name: '月度会员', price: 39, originalPrice: 39, features: ['每日生成 10 次', '优先使用 AI', '专属客服支持'] },
-  { id: 'quarterly', name: '季度会员', price: 99, originalPrice: 99, features: ['每日生成 20 次', '优先使用 AI', '专属客服支持', '赠送 50 次'], recommended: true },
-  { id: 'yearly', name: '年度会员', price: 299, originalPrice: 299, features: ['每日生成 50 次', '优先使用 AI', '专属客服支持', '赠送 200 次', '专属活动参与权'] }
+  { id: 'monthly', name: '月度会员', price: 29, originalPrice: 39, features: ['每日生成 10 次', '优先使用 AI', '专属客服支持'] }
 ]
 
 export default function MembershipPage() {
