@@ -1,0 +1,119 @@
+## 项目概述
+
+**script-workshop** - AI 脚本生成工作流应用。基于 Next.js 构建，通过多步骤引导用户生成内容策略和脚本。
+
+## 技术栈
+
+| 分类 | 技术 |
+|------|------|
+| 框架 | Next.js 16.2.6 |
+| 语言 | TypeScript 5.7.3 |
+| UI | React 19 + Tailwind CSS 4 + shadcn/ui |
+| 状态管理 | Zustand 5 |
+| AI 集成 | AI SDK + OpenAI SDK |
+| 包管理器 | pnpm |
+| 运行时 | Node.js 24 |
+
+## 目录结构
+
+```
+/workspace/projects/
+├── .coze                    # Coze 项目配置（预览 + 部署）
+├── .cozeproj/scripts/        # 部署脚本
+│   ├── deploy_build.sh
+│   └── deploy_run.sh
+├── scripts/                  # 预览脚本
+│   ├── coze-preview-build.sh
+│   └── coze-preview-run.sh
+├── app/                      # Next.js App Router
+│   ├── api/                  # API 路由
+│   │   ├── config/status/
+│   │   └── workflow/
+│   │       ├── content-strategy/
+│   │       └── script/
+│   ├── page.tsx             # 首页
+│   └── layout.tsx
+├── components/              # React 组件
+│   ├── steps/               # 工作流步骤组件
+│   └── ui/                  # shadcn/ui 组件
+├── lib/                     # 业务逻辑
+│   ├── ai.ts               # AI 调用封装
+│   ├── coze/               # Coze API 集成
+│   ├── decision/            # 决策解析
+│   ├── history/             # 历史记录存储
+│   ├── strategy/           # 策略解析
+│   └── store.ts            # Zustand store
+└── public/                 # 静态资源
+```
+
+## 关键入口 / 核心模块
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| 首页 | `app/page.tsx` | 应用入口页面 |
+| 内容策略 API | `app/api/workflow/content-strategy/route.ts` | AI 生成内容策略 |
+| 脚本生成 API | `app/api/workflow/script/route.ts` | AI 生成脚本 |
+| 状态查询 API | `app/api/config/status/route.ts` | 状态配置查询 |
+| AI 封装 | `lib/ai.ts` | OpenAI / Coze API 调用 |
+| 状态管理 | `lib/store.ts` | Zustand 全局状态 |
+
+## 运行与预览
+
+### 开发预览
+```bash
+# 安装依赖并启动开发服务器
+bash scripts/coze-preview-build.sh
+bash scripts/coze-preview-run.sh
+# 访问 http://localhost:5000
+```
+
+### 生产构建与部署
+```bash
+# 构建
+bash .cozeproj/scripts/deploy_build.sh
+
+# 启动生产服务
+bash .cozeproj/scripts/deploy_run.sh
+```
+
+## Coze 配置
+
+### .coze 配置
+```toml
+[project]
+sub_id = "53a229df"
+name = "script-workshop"
+requires = ["nodejs-24"]
+project_type = "web"
+entrypoint = "server.js"
+
+[preview]
+preview_enable = "enabled"
+
+[deploy]
+build = ["bash", ".cozeproj/scripts/deploy_build.sh"]
+run = ["bash", ".cozeproj/scripts/deploy_run.sh"]
+
+[deploy.profile]
+kind = "service"
+flavor = "web"
+```
+
+### 端口规范
+- 预览端口：**5000**
+- 部署端口：**5000**
+- 禁止使用 9000 端口
+
+## 用户偏好与长期约束
+
+1. **包管理器**：必须使用 `pnpm`，禁止 `npm` 或 `yarn`
+2. **运行时**：项目要求 Node.js 24
+3. **端口约束**：预览和部署统一使用 5000 端口
+4. **脚本规范**：所有脚本基于自身位置定位项目根目录，不依赖调用时 `pwd`
+
+## 常见问题和预防
+
+1. **端口占用**：启动前自动清理 5000 端口残留进程
+2. **依赖安装**：始终在项目根目录执行 `pnpm install`
+3. **构建验证**：生产构建使用 `pnpm run build`，启动使用 `pnpm run start`
+4. **环境变量**：`.env.example` 提供环境变量模板，运行时需配置 `OPENAI_API_KEY` 等密钥
