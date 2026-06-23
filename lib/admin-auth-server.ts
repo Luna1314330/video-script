@@ -60,11 +60,20 @@ export function verifyAdminSessionToken(token: string | undefined | null): boole
 export function adminSessionCookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: shouldUseSecureAdminCookie(),
     sameSite: 'lax' as const,
     path: '/',
     maxAge: SESSION_MAX_AGE_SEC,
   }
+}
+
+/** HTTP 部署（如 http://IP）须为 false；HTTPS 可 true 或通过 APP_URL=https://... 自动启用 */
+function shouldUseSecureAdminCookie(): boolean {
+  if (process.env.ADMIN_COOKIE_SECURE === 'true') return true
+  if (process.env.ADMIN_COOKIE_SECURE === 'false') return false
+
+  const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
+  return appUrl.startsWith('https://')
 }
 
 export function requireAdminApi(request: NextRequest): NextResponse | null {

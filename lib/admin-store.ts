@@ -22,6 +22,7 @@ export const useAdminStore = create<AdminState>()(
         const res = await fetch('/api/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ username, password }),
         })
 

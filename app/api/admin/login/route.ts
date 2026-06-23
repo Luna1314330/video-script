@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   if (!hasValidAdminSession(request)) {
-    return NextResponse.json({ authenticated: false }, { status: 401 })
+    return NextResponse.json({ authenticated: false })
   }
 
   return NextResponse.json({ authenticated: true, username: 'admin' })
