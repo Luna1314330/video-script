@@ -1,5 +1,7 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { DB } from '@/lib/db/tables'
+import { and, count, desc, eq, like, or } from 'drizzle-orm'
+import type { AppDb } from '@/lib/db/index'
+import { newId } from '@/lib/db/index'
+import { scriptHistory } from '@/lib/db/schema'
 import type {
   BasicInput,
   GeneratedScript,
@@ -103,8 +105,32 @@ export function mapScriptHistoryEntry(row: ScriptHistoryRow): GenerationHistoryE
   }
 }
 
+function toHistoryRow(row: {
+  id: string
+  userId: string
+  industry: string
+  productName: string
+  productDesc: string | null
+  shootScene: string | null
+  topic: string
+  generatedScript: string | null
+  createdAt: string
+}): ScriptHistoryRow {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    industry: row.industry,
+    product_name: row.productName,
+    product_desc: row.productDesc,
+    shoot_scene: row.shootScene,
+    topic: row.topic,
+    generated_script: row.generatedScript,
+    created_at: row.createdAt,
+  }
+}
+
 export async function persistScriptHistory(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
   input: {
     basicInput: BasicInput
@@ -119,33 +145,31 @@ export async function persistScriptHistory(
     selectedTopic: input.selectedTopic,
   }
 
-  const { data, error } = await supabaseAdmin
-    .from(DB.scriptHistory)
-    .insert({
-      user_id: userId,
-      industry: input.basicInput.industry.trim(),
-      product_name: input.basicInput.product.trim(),
-      product_desc: input.basicInput.productDescription?.trim() || null,
-      shoot_scene: input.basicInput.scene?.trim() || null,
-      topic: input.selectedTopic.topic.trim(),
-      generated_script: JSON.stringify(payload),
-    })
-    .select('id, created_at')
-    .single()
+  const id = newId()
+  const createdAt = new Date().toISOString().slice(0, 19).replace('T', ' ')
 
-  if (error) {
+  try {
+    await db.insert(scriptHistory).values({
+      id,
+      userId,
+      industry: input.basicInput.industry.trim(),
+      productName: input.basicInput.product.trim(),
+      productDesc: input.basicInput.productDescription?.trim() || null,
+      shootScene: input.basicInput.scene?.trim() || null,
+      topic: input.selectedTopic.topic.trim(),
+      generatedScript: JSON.stringify(payload),
+      createdAt,
+    })
+  } catch (error) {
     console.error('保存脚本历史失败:', error)
     return null
   }
 
-  return {
-    id: data.id as string,
-    createdAt: (data.created_at as string) || new Date().toISOString(),
-  }
+  return { id, createdAt }
 }
 
 export async function listUserScriptHistory(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
   options: { page?: number; pageSize?: number } = {},
 ): Promise<{
@@ -156,44 +180,71 @@ export async function listUserScriptHistory(
 }> {
   const page = Math.max(1, options.page ?? 1)
   const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 50))
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+  const offset = (page - 1) * pageSize
 
-  const { data, error, count } = await supabaseAdmin
-    .from(DB.scriptHistory)
-    .select('id, user_id, industry, product_name, product_desc, shoot_scene, topic, generated_script, created_at', {
-      count: 'exact',
-    })
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .range(from, to)
+  const whereClause = eq(scriptHistory.userId, userId)
 
-  if (error) {
-    throw new Error(error.message)
-  }
+  const [countRows, data] = await Promise.all([
+    db.select({ value: count() }).from(scriptHistory).where(whereClause),
+    db
+      .select()
+      .from(scriptHistory)
+      .where(whereClause)
+      .orderBy(desc(scriptHistory.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+  ])
 
   return {
-    items: (data || []).map((row) => mapScriptHistoryEntry(row as ScriptHistoryRow)),
-    total: count ?? 0,
+    items: data.map((row) => mapScriptHistoryEntry(toHistoryRow(row))),
+    total: Number(countRows[0]?.value ?? 0),
     page,
     pageSize,
   }
 }
 
 export async function deleteUserScriptHistory(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
   id: string,
 ): Promise<boolean> {
-  const { error, count } = await supabaseAdmin
-    .from(DB.scriptHistory)
-    .delete({ count: 'exact' })
-    .eq('id', id)
-    .eq('user_id', userId)
+  const result = await db
+    .delete(scriptHistory)
+    .where(and(eq(scriptHistory.id, id), eq(scriptHistory.userId, userId)))
 
-  if (error) {
-    throw new Error(error.message)
+  const affected = (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ?? 0
+  return affected > 0
+}
+
+export async function listAdminScriptHistory(
+  db: AppDb,
+  keyword: string,
+): Promise<ScriptHistoryRow[]> {
+  const baseQuery = db
+    .select()
+    .from(scriptHistory)
+    .orderBy(desc(scriptHistory.createdAt))
+    .limit(100)
+
+  const trimmed = keyword.trim()
+  if (!trimmed) {
+    const rows = await baseQuery
+    return rows.map(toHistoryRow)
   }
 
-  return (count ?? 0) > 0
+  const pattern = `%${trimmed}%`
+  const rows = await db
+    .select()
+    .from(scriptHistory)
+    .where(
+      or(
+        like(scriptHistory.productName, pattern),
+        like(scriptHistory.industry, pattern),
+        like(scriptHistory.topic, pattern),
+      ),
+    )
+    .orderBy(desc(scriptHistory.createdAt))
+    .limit(100)
+
+  return rows.map(toHistoryRow)
 }

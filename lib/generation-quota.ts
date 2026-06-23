@@ -1,5 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { DB, isMembershipActive } from '@/lib/db/tables'
+import { and, count, eq, gte } from 'drizzle-orm'
+import type { AppDb } from '@/lib/db/index'
+import { newId } from '@/lib/db/index'
+import { generationLogs, memberships } from '@/lib/db/schema'
+import { isMembershipActive } from '@/lib/db/tables'
 import {
   ensureSiteSettingsHydrated,
   getSiteSettings,
@@ -7,57 +10,59 @@ import {
 
 export const GENERATION_ACTION_SCRIPT = 'script'
 
-function getTodayStartIso(): string {
+function getTodayStartSql(): string {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  return start.toISOString()
+  return start.toISOString().slice(0, 19).replace('T', ' ')
 }
 
 export async function getUserMembershipActive(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
 ): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from(DB.memberships)
-    .select('status, expires_at')
-    .eq('user_id', userId)
-    .maybeSingle()
+  const rows = await db
+    .select({
+      status: memberships.status,
+      expiresAt: memberships.expiresAt,
+    })
+    .from(memberships)
+    .where(eq(memberships.userId, userId))
+    .limit(1)
 
+  const data = rows[0]
   if (!data) return false
-  return isMembershipActive(data.status, data.expires_at)
+  return isMembershipActive(data.status, data.expiresAt)
 }
 
 export async function countTodayScriptGenerations(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
 ): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from(DB.generationLogs)
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('action', GENERATION_ACTION_SCRIPT)
-    .gte('created_at', getTodayStartIso())
+  const startStr = getTodayStartSql()
 
-  if (error) {
-    console.error('统计生成次数失败:', error)
-    throw new Error(error.message)
-  }
+  const rows = await db
+    .select({ value: count() })
+    .from(generationLogs)
+    .where(
+      and(
+        eq(generationLogs.userId, userId),
+        eq(generationLogs.action, GENERATION_ACTION_SCRIPT),
+        gte(generationLogs.createdAt, startStr),
+      ),
+    )
 
-  return count ?? 0
+  return Number(rows[0]?.value ?? 0)
 }
 
-export async function getGenerationQuota(
-  supabaseAdmin: SupabaseClient,
-  userId: string,
-) {
-  await ensureSiteSettingsHydrated(supabaseAdmin)
+export async function getGenerationQuota(db: AppDb, userId: string) {
+  await ensureSiteSettingsHydrated(db)
 
-  const isMember = await getUserMembershipActive(supabaseAdmin, userId)
+  const isMember = await getUserMembershipActive(db, userId)
   const settings = getSiteSettings()
   const dailyLimit = isMember
     ? settings.memberGenerations.daily
     : settings.freeGenerations.daily
-  const used = await countTodayScriptGenerations(supabaseAdmin, userId)
+  const used = await countTodayScriptGenerations(db, userId)
   const remaining = Math.max(0, dailyLimit - used)
 
   return {
@@ -68,11 +73,8 @@ export async function getGenerationQuota(
   }
 }
 
-export async function consumeScriptGenerationQuota(
-  supabaseAdmin: SupabaseClient,
-  userId: string,
-) {
-  const quota = await getGenerationQuota(supabaseAdmin, userId)
+export async function consumeScriptGenerationQuota(db: AppDb, userId: string) {
+  const quota = await getGenerationQuota(db, userId)
 
   if (quota.remaining <= 0) {
     return {
@@ -85,20 +87,21 @@ export async function consumeScriptGenerationQuota(
     }
   }
 
-  const { data, error } = await supabaseAdmin
-    .from(DB.generationLogs)
-    .insert({
-      user_id: userId,
-      action: GENERATION_ACTION_SCRIPT,
-    })
-    .select('id')
-    .single()
+  const logId = newId()
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
 
-  if (error || !data) {
+  try {
+    await db.insert(generationLogs).values({
+      id: logId,
+      userId,
+      action: GENERATION_ACTION_SCRIPT,
+      createdAt: now,
+    })
+  } catch (error) {
     console.error('写入生成记录失败:', error)
     return {
       success: false as const,
-      message: `扣减额度失败：${error?.message || '未知错误'}`,
+      message: `扣减额度失败：${error instanceof Error ? error.message : '未知错误'}`,
       status: 500,
       quota,
     }
@@ -113,31 +116,24 @@ export async function consumeScriptGenerationQuota(
   return {
     success: true as const,
     quota: nextQuota,
-    logId: data.id as string,
+    logId,
   }
 }
 
-/** 生成失败时退还已扣减的额度（删除对应 generation_logs 记录） */
 export async function refundScriptGenerationQuota(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   userId: string,
   logId: string,
 ): Promise<{ refunded: boolean; quota?: Awaited<ReturnType<typeof getGenerationQuota>> }> {
-  const { error, count } = await supabaseAdmin
-    .from(DB.generationLogs)
-    .delete({ count: 'exact' })
-    .eq('id', logId)
-    .eq('user_id', userId)
+  const result = await db
+    .delete(generationLogs)
+    .where(and(eq(generationLogs.id, logId), eq(generationLogs.userId, userId)))
 
-  if (error) {
-    console.error('退还额度失败:', error)
+  const affected = (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ?? 0
+  if (!affected) {
     return { refunded: false }
   }
 
-  if (!count) {
-    return { refunded: false }
-  }
-
-  const quota = await getGenerationQuota(supabaseAdmin, userId)
+  const quota = await getGenerationQuota(db, userId)
   return { refunded: true, quota }
 }

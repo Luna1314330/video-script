@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { provisionAppUser, validateUserPassword, validateUserPhone } from '@/lib/auth-users'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { getDb } from '@/lib/db/index'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,12 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: passwordError }, { status: 400 })
     }
 
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Supabase 未配置，无法注册' }, { status: 503 })
+    const db = getDb()
+    if (!db) {
+      return NextResponse.json({ error: '数据库未配置，无法注册' }, { status: 503 })
     }
 
-    const result = await provisionAppUser(supabaseAdmin, {
+    const result = await provisionAppUser(db, {
       phone: phone.trim(),
       password,
     })

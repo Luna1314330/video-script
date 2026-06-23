@@ -8,7 +8,7 @@ import {
 import { requireAuthUser } from '@/lib/require-auth'
 import { persistScriptHistory } from '@/lib/script-history'
 import { normalizeScriptResponse } from '@/lib/script/parse'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { getDb, type AppDb } from '@/lib/db/index'
 import {
   BasicInput,
   ContentStrategyResult,
@@ -30,24 +30,24 @@ type ScriptRequestBody = {
 }
 
 async function refundIfNeeded(
-  supabaseAdmin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  db: AppDb,
   userId: string,
   logId?: string,
 ) {
   if (!logId) return undefined
-  const result = await refundScriptGenerationQuota(supabaseAdmin, userId, logId)
+  const result = await refundScriptGenerationQuota(db, userId, logId)
   return result.quota
 }
 
 async function saveScriptIfPossible(
-  supabaseAdmin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  db: AppDb,
   userId: string,
   basicInput: BasicInput | undefined,
   selectedTopic: StrategyTopicItem,
   script: GeneratedScript,
 ) {
   if (!basicInput?.industry?.trim() || !basicInput?.product?.trim()) return
-  await persistScriptHistory(supabaseAdmin, userId, {
+  await persistScriptHistory(db, userId, {
     basicInput,
     selectedTopic,
     script,
@@ -71,9 +71,9 @@ export async function POST(request: Request) {
     const workflowId = config.workflowIds.script
     const platformId = body.platformId ?? DEFAULT_PLATFORM_ID
 
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
-      return Response.json({ error: 'Supabase 未配置' }, { status: 503 })
+    const db = getDb()
+    if (!db) {
+      return Response.json({ error: '数据库未配置' }, { status: 503 })
     }
 
     if (body.executeId) {
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       }
 
       if (poll.status === 'Fail') {
-        const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+        const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
         return Response.json(
           {
             error: poll.error || 'Coze 工作流执行失败',
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
       const selectedTopic = body.selectedTopic
       if (!selectedTopic) {
-        const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+        const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
         return Response.json(
           { error: '缺少选题信息', quotaRefunded: Boolean(quota), quota },
           { status: 400 }
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       try {
         const script = normalizeScriptResponse(poll.output, selectedTopic, platformId)
         await saveScriptIfPossible(
-          supabaseAdmin,
+          db,
           auth.user.id,
           body.basicInput,
           selectedTopic,
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
         return Response.json({ script, source: 'coze' })
       } catch (parseError) {
         console.error('Coze script raw response:', JSON.stringify(poll.output).slice(0, 2000))
-        const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+        const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
         throw Object.assign(parseError instanceof Error ? parseError : new Error('解析脚本失败'), {
           quota,
           quotaRefunded: Boolean(quota),
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const consume = await consumeScriptGenerationQuota(supabaseAdmin, auth.user.id)
+    const consume = await consumeScriptGenerationQuota(db, auth.user.id)
     if (!consume.success) {
       return Response.json(
         { error: consume.message, quota: consume.quota },
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     const { basicInput, selectedTopic } = body
 
     if (!selectedTopic) {
-      const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+      const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
       return Response.json(
         { error: '请选择选题', quotaRefunded: Boolean(quota), quota },
         { status: 400 }
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
         try {
           const script = normalizeScriptResponse(start.immediate, selectedTopic, platformId)
           await saveScriptIfPossible(
-            supabaseAdmin,
+            db,
             auth.user.id,
             basicInput,
             selectedTopic,
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
             generationLogId,
           })
         } catch (parseError) {
-          const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+          const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
           throw Object.assign(parseError instanceof Error ? parseError : new Error('解析脚本失败'), {
             quota,
             quotaRefunded: Boolean(quota),
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
         generationLogId,
       })
     } catch (workflowError) {
-      const quota = await refundIfNeeded(supabaseAdmin, auth.user.id, generationLogId)
+      const quota = await refundIfNeeded(db, auth.user.id, generationLogId)
       throw Object.assign(
         workflowError instanceof Error ? workflowError : new Error('启动工作流失败'),
         { quota, quotaRefunded: Boolean(quota) },

@@ -1,29 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { deleteUserScriptHistory } from '@/lib/script-history'
+import { getDb } from '@/lib/db/index'
 import { requireAuthUser } from '@/lib/require-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function DELETE(
-  _request: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAuthUser(_request)
+  const auth = await requireAuthUser(request)
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status })
   }
 
-  const { id } = await context.params
-  if (!id) {
-    return NextResponse.json({ error: '缺少记录 ID' }, { status: 400 })
-  }
-
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
-    return NextResponse.json({ error: 'Supabase 未配置' }, { status: 503 })
+  const db = getDb()
+  if (!db) {
+    return NextResponse.json({ error: '数据库未配置' }, { status: 503 })
   }
 
   try {
-    const deleted = await deleteUserScriptHistory(supabaseAdmin, auth.user.id, id)
+    const { id } = await params
+    const deleted = await deleteUserScriptHistory(db, auth.user.id, id)
     if (!deleted) {
       return NextResponse.json({ error: '记录不存在' }, { status: 404 })
     }

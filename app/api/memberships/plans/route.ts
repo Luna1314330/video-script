@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
+import { getDb } from '@/lib/db/index'
 import {
   ensureSiteSettingsHydrated,
   getEnabledMembershipPlans,
   getSiteSettings,
 } from '@/lib/site-settings'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 /** 公开：获取已启用的会员套餐及价格（无需登录） */
 export async function GET() {
-  const supabaseAdmin = getSupabaseAdmin()
-  if (supabaseAdmin) {
+  const db = getDb()
+  if (db) {
     try {
-      await ensureSiteSettingsHydrated(supabaseAdmin)
+      await ensureSiteSettingsHydrated(db)
     } catch (error) {
       console.error('加载套餐配置失败:', error)
     }

@@ -1,9 +1,13 @@
+import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
-import { validateUserPassword } from '@/lib/auth-users'
-import { DB, phoneToEmail } from '@/lib/db/tables'
+import {
+  updateUserPassword,
+  validateUserPassword,
+  verifyUserCredentials,
+} from '@/lib/auth-users'
+import { getDb } from '@/lib/db/index'
+import { userProfiles } from '@/lib/db/schema'
 import { requireAuthUser } from '@/lib/require-auth'
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,66 +49,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
+    const db = getDb()
+    if (!db) {
       return NextResponse.json(
-        { success: false, message: 'Supabase 未配置' },
+        { success: false, message: '数据库未配置' },
         { status: 503 },
       )
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from(DB.userProfiles)
-      .select('phone, is_active')
-      .eq('id', auth.user.id)
-      .maybeSingle()
+    const profileRows = await db
+      .select({
+        phone: userProfiles.phone,
+        isActive: userProfiles.isActive,
+      })
+      .from(userProfiles)
+      .where(eq(userProfiles.id, auth.user.id))
+      .limit(1)
 
-    if (profileError || !profile?.phone) {
+    const profile = profileRows[0]
+    if (!profile?.phone) {
       return NextResponse.json(
         { success: false, message: '用户不存在' },
         { status: 404 },
       )
     }
 
-    if (profile.is_active === false) {
+    if (profile.isActive === 0) {
       return NextResponse.json(
         { success: false, message: '账号已被禁用' },
         { status: 403 },
       )
     }
 
-    const supabaseAuth = getSupabaseAuthClient()
-    if (!supabaseAuth) {
-      return NextResponse.json(
-        { success: false, message: 'Supabase 未配置' },
-        { status: 503 },
-      )
-    }
-
-    const { error: signInError } = await supabaseAuth.auth.signInWithPassword({
-      email: phoneToEmail(profile.phone),
-      password: oldPassword,
-    })
-
-    if (signInError) {
+    const verified = await verifyUserCredentials(db, profile.phone, oldPassword)
+    if (!verified.ok) {
       return NextResponse.json(
         { success: false, message: '旧密码错误' },
         { status: 401 },
       )
     }
 
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      auth.user.id,
-      { password: newPassword },
-    )
-
-    if (updateError) {
-      console.error('更新密码失败:', updateError)
-      return NextResponse.json(
-        { success: false, message: '修改密码失败，请稍后重试' },
-        { status: 500 },
-      )
-    }
+    await updateUserPassword(db, auth.user.id, newPassword)
 
     return NextResponse.json({
       success: true,

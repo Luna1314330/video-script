@@ -58,13 +58,6 @@ export function handleAuthExpired(): void {
   handlingAuthExpired = true
 
   clearAuthSession()
-
-  void import('@/lib/supabase')
-    .then(({ supabase }) => supabase.auth.signOut())
-    .catch(() => {
-      // 本地 session 已清除即可
-    })
-
   window.location.replace('/')
 }
 

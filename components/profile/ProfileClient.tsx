@@ -13,7 +13,7 @@ import {
   getPlanTypeLabel,
   type ProfileUser,
 } from '@/lib/profile/client'
-import { validateUserPassword } from '@/lib/auth-users'
+import { validateUserPassword } from '@/lib/auth-validation'
 import { ScriptCard } from '@/components/ScriptCard'
 import { GenerationQuotaDisplay } from '@/components/GenerationQuotaDisplay'
 import type { GenerationHistoryEntry } from '@/lib/types'
@@ -66,8 +66,7 @@ export default function ProfileClient() {
 
   const handleLogout = async () => {
     try {
-      const { supabase } = await import('@/lib/supabase')
-      await supabase.auth.signOut()
+      await fetch('/api/auth/logout', { method: 'POST' })
       clearAuthSession()
       window.location.href = '/'
     } catch (e) {
@@ -292,13 +291,6 @@ function ChangePassword() {
       await changePassword({ oldPassword, newPassword })
 
       clearAuthSession()
-      try {
-        const { supabase } = await import('@/lib/supabase')
-        await supabase.auth.signOut()
-      } catch {
-        // 本地 session 已清除即可
-      }
-
       window.location.href = '/login'
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '修改密码失败')

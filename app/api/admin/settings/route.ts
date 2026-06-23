@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { mockAdminSettingsResponse } from '@/lib/admin-api-mock'
+import { getDb } from '@/lib/db/index'
 import {
   ensureSiteSettingsHydrated,
   getSiteSettings,
@@ -7,21 +8,19 @@ import {
   toAdminApiPayload,
   updateSiteSettingsFromAdmin,
 } from '@/lib/site-settings'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { requireAdminApi } from '@/lib/admin-auth-server'
 
-// GET - 从 system_settings 表读取配置
 export async function GET(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
+  const db = getDb()
+  if (!db) {
     return NextResponse.json(mockAdminSettingsResponse())
   }
 
   try {
-    const result = await ensureSiteSettingsHydrated(supabaseAdmin)
+    const result = await ensureSiteSettingsHydrated(db)
 
     return NextResponse.json({
       success: true,
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
         tableReady: result.tableReady,
         note: result.tableReady
           ? '配置已持久化到 system_settings 表'
-          : '请先在 Supabase SQL Editor 执行 storage/database/system_settings.sql',
+          : '请先在 MySQL 执行 storage/database/schema.mysql.sql 中的 system_settings 初始化',
       },
     })
   } catch (error) {
@@ -48,21 +47,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - 保存到 system_settings 表
 export async function PUT(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
-    return NextResponse.json({ success: false, error: 'Supabase 未配置' }, { status: 503 })
+  const db = getDb()
+  if (!db) {
+    return NextResponse.json({ success: false, error: '数据库未配置' }, { status: 503 })
   }
 
   try {
     const body = await request.json()
     const settings = updateSiteSettingsFromAdmin(body)
-
-    await persistSiteSettingsToDb(supabaseAdmin, settings)
+    await persistSiteSettingsToDb(db, settings)
 
     return NextResponse.json({
       success: true,
@@ -76,10 +73,10 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : '保存失败'
 
-    if (message.includes('Could not find the table')) {
+    if (message.includes("doesn't exist")) {
       return NextResponse.json({
         success: false,
-        error: 'system_settings 表不存在，请先在 Supabase 执行 storage/database/system_settings.sql',
+        error: 'system_settings 表不存在，请先在 MySQL 执行建表 SQL',
       }, { status: 503 })
     }
 

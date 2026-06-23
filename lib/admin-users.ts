@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AppDb } from '@/lib/db/index'
 import { provisionAppUser, validateUserPhone } from '@/lib/auth-users'
 
 const DEFAULT_ADMIN_PASSWORD = '123456'
@@ -6,7 +6,7 @@ const DEFAULT_ADMIN_PASSWORD = '123456'
 export { validateUserPhone as validateAdminUserPhone }
 
 export async function createAdminUser(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   input: { phone: string; nickname?: string; password?: string },
 ) {
   const phone = input.phone.trim()
@@ -16,7 +16,7 @@ export async function createAdminUser(
   }
 
   const password = input.password?.trim() || DEFAULT_ADMIN_PASSWORD
-  const result = await provisionAppUser(supabaseAdmin, {
+  const result = await provisionAppUser(db, {
     phone,
     password,
     nickname: input.nickname,

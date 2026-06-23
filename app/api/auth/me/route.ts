@@ -1,7 +1,10 @@
+import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
-import { DB, isMembershipActive, normalizePhone } from '@/lib/db/tables'
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { isJwtConfigured, verifyAccessToken } from '@/lib/auth-server'
+import { getDb } from '@/lib/db/index'
+import { isActiveFlag } from '@/lib/db/index'
+import { memberships, userProfiles } from '@/lib/db/schema'
+import { isMembershipActive, normalizePhone } from '@/lib/db/tables'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,59 +14,69 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
 
-    const supabaseAuth = getSupabaseAuthClient()
-    if (!supabaseAuth) {
-      return NextResponse.json({ error: 'Supabase 未配置' }, { status: 503 })
+    if (!isJwtConfigured()) {
+      return NextResponse.json({ error: '认证未配置' }, { status: 503 })
     }
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
-    if (authError || !user) {
+    const payload = await verifyAccessToken(token)
+    if (!payload) {
       return NextResponse.json({ error: '登录已过期，请重新登录' }, { status: 401 })
     }
 
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
+    const db = getDb()
+    if (!db) {
       return NextResponse.json({
         user: {
-          id: user.id,
-          phone: normalizePhone(user.user_metadata?.phone as string | undefined),
-          nickname: user.user_metadata?.nickname || '',
+          id: payload.userId,
+          phone: normalizePhone(payload.phone),
+          nickname: '',
         },
       })
     }
 
-    const [{ data: profile }, { data: membership }] = await Promise.all([
-      supabaseAdmin
-        .from(DB.userProfiles)
-        .select('phone, nickname, is_active')
-        .eq('id', user.id)
-        .maybeSingle(),
-      supabaseAdmin
-        .from(DB.memberships)
-        .select('status, starts_at, expires_at, plan_type')
-        .eq('user_id', user.id)
-        .maybeSingle(),
+    const [profileRows, membershipRows] = await Promise.all([
+      db
+        .select({
+          phone: userProfiles.phone,
+          nickname: userProfiles.nickname,
+          isActive: userProfiles.isActive,
+        })
+        .from(userProfiles)
+        .where(eq(userProfiles.id, payload.userId))
+        .limit(1),
+      db
+        .select({
+          status: memberships.status,
+          startsAt: memberships.startsAt,
+          expiresAt: memberships.expiresAt,
+          planType: memberships.planType,
+        })
+        .from(memberships)
+        .where(eq(memberships.userId, payload.userId))
+        .limit(1),
     ])
 
-    if (profile?.is_active === false) {
+    const profile = profileRows[0]
+    if (profile && !isActiveFlag(profile.isActive)) {
       return NextResponse.json({ error: '账号已被禁用' }, { status: 403 })
     }
 
+    const membership = membershipRows[0]
     const active = membership
-      ? isMembershipActive(membership.status, membership.expires_at)
+      ? isMembershipActive(membership.status, membership.expiresAt)
       : false
 
     return NextResponse.json({
       user: {
-        id: user.id,
-        phone: normalizePhone(profile?.phone),
-        nickname: profile?.nickname || user.user_metadata?.nickname || '',
+        id: payload.userId,
+        phone: normalizePhone(profile?.phone || payload.phone),
+        nickname: profile?.nickname || '',
         membership: membership
           ? {
               status: active ? 'active' : membership.status,
-              plan_type: membership.plan_type,
-              starts_at: membership.starts_at,
-              expires_at: membership.expires_at,
+              plan_type: membership.planType,
+              starts_at: membership.startsAt,
+              expires_at: membership.expiresAt,
             }
           : { status: 'free', plan_type: null },
       },

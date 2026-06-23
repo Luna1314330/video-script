@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   AUTH_MESSAGES,
-  mapAuthErrorMessage,
   validateUserPassword,
   validateUserPhone,
-} from '@/lib/auth-users'
+} from '@/lib/auth-validation'
 
 describe('validateUserPhone', () => {
   it('拒绝空手机号', () => {
@@ -40,40 +39,9 @@ describe('validateUserPassword', () => {
   })
 })
 
-describe('mapAuthErrorMessage', () => {
-  it('映射已注册错误', () => {
-    const result = mapAuthErrorMessage({ message: 'User already registered' })
-    expect(result).toEqual({
-      message: AUTH_MESSAGES.alreadyRegistered,
-      status: 400,
-      code: 'ALREADY_REGISTERED',
-    })
-  })
-
-  it('映射凭据错误', () => {
-    const result = mapAuthErrorMessage({ message: 'Invalid login credentials' })
-    expect(result).toEqual({
-      message: AUTH_MESSAGES.invalidCredentials,
-      status: 401,
-      code: 'INVALID_CREDENTIALS',
-    })
-  })
-
-  it('映射邮箱未验证错误', () => {
-    const result = mapAuthErrorMessage({ message: 'Email not confirmed' })
-    expect(result.message).toBe('账号尚未验证，请联系管理员')
-    expect(result.status).toBe(403)
-  })
-
-  it('映射密码相关错误', () => {
-    const result = mapAuthErrorMessage({ message: 'Password should be at least 6 characters' })
-    expect(result.message).toBe('密码不符合要求，请检查后重试')
-    expect(result.status).toBe(400)
-  })
-
-  it('未知错误保留原始信息', () => {
-    const result = mapAuthErrorMessage({ message: 'Something went wrong', status: 502 })
-    expect(result.message).toBe('注册失败：Something went wrong')
-    expect(result.status).toBe(502)
+describe('AUTH_MESSAGES', () => {
+  it('包含常用提示文案', () => {
+    expect(AUTH_MESSAGES.invalidCredentials).toBe('手机号或密码错误')
+    expect(AUTH_MESSAGES.alreadyRegistered).toMatch(/已注册/)
   })
 })

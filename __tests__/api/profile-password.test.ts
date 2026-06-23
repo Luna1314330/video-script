@@ -6,21 +6,39 @@ vi.mock('@/lib/require-auth', () => ({
   requireAuthUser: vi.fn(),
 }))
 
-vi.mock('@/lib/supabase-admin', () => ({
-  getSupabaseAdmin: vi.fn(),
+vi.mock('@/lib/db/index', () => ({
+  getDb: vi.fn(),
 }))
 
-vi.mock('@/lib/supabase-auth', () => ({
-  getSupabaseAuthClient: vi.fn(),
-}))
+vi.mock('@/lib/auth-users', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/auth-validation')>(
+    '@/lib/auth-validation',
+  )
+  return {
+    ...actual,
+    verifyUserCredentials: vi.fn(),
+    updateUserPassword: vi.fn(),
+  }
+})
 
+import { updateUserPassword, verifyUserCredentials } from '@/lib/auth-users'
 import { requireAuthUser } from '@/lib/require-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
+import { getDb } from '@/lib/db/index'
 
 describe('POST /api/profile/password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getDb).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([
+              { phone: '13800138000', isActive: 1 },
+            ]),
+          }),
+        }),
+      }),
+    } as never)
   })
 
   it('未登录返回 401', async () => {
@@ -47,7 +65,7 @@ describe('POST /api/profile/password', () => {
       ok: true,
       user: { id: 'user-1' },
       token: 'token',
-    } as never)
+    })
 
     const res = await POST(
       createJsonRequest('http://localhost/api/profile/password', {
@@ -66,7 +84,7 @@ describe('POST /api/profile/password', () => {
       ok: true,
       user: { id: 'user-1' },
       token: 'token',
-    } as never)
+    })
 
     const res = await POST(
       createJsonRequest('http://localhost/api/profile/password', {
@@ -85,29 +103,13 @@ describe('POST /api/profile/password', () => {
       ok: true,
       user: { id: 'user-1' },
       token: 'token',
-    } as never)
+    })
 
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { phone: '13800138000', is_active: true },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-      auth: { admin: { updateUserById: vi.fn() } },
-    } as never)
-
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        signInWithPassword: vi.fn().mockResolvedValue({
-          error: { message: 'Invalid login credentials' },
-        }),
-      },
-    } as never)
+    vi.mocked(verifyUserCredentials).mockResolvedValue({
+      ok: false,
+      message: '手机号或密码错误',
+      status: 401,
+    })
 
     const res = await POST(
       createJsonRequest('http://localhost/api/profile/password', {
@@ -126,29 +128,13 @@ describe('POST /api/profile/password', () => {
       ok: true,
       user: { id: 'user-1' },
       token: 'token',
-    } as never)
+    })
 
-    const updateUserById = vi.fn().mockResolvedValue({ error: null })
-
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { phone: '13800138000', is_active: true },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-      auth: { admin: { updateUserById } },
-    } as never)
-
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
-      },
-    } as never)
+    vi.mocked(verifyUserCredentials).mockResolvedValue({
+      ok: true,
+      user: { id: 'user-1', phone: '13800138000', nickname: '用户' },
+    })
+    vi.mocked(updateUserPassword).mockResolvedValue({ success: true })
 
     const res = await POST(
       createJsonRequest('http://localhost/api/profile/password', {
@@ -160,6 +146,6 @@ describe('POST /api/profile/password', () => {
 
     expect(status).toBe(200)
     expect(body.success).toBe(true)
-    expect(updateUserById).toHaveBeenCalledWith('user-1', { password: '654321' })
+    expect(updateUserPassword).toHaveBeenCalledWith(expect.anything(), 'user-1', '654321')
   })
 })

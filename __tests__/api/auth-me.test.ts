@@ -2,16 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET } from '@/app/api/auth/me/route'
 import { readJsonResponse } from '../helpers/http'
 
-vi.mock('@/lib/supabase-auth', () => ({
-  getSupabaseAuthClient: vi.fn(),
+vi.mock('@/lib/auth-server', () => ({
+  isJwtConfigured: vi.fn(),
+  verifyAccessToken: vi.fn(),
 }))
 
-vi.mock('@/lib/supabase-admin', () => ({
-  getSupabaseAdmin: vi.fn(),
+vi.mock('@/lib/db/index', () => ({
+  getDb: vi.fn(),
+  isActiveFlag: (value: number | boolean) => value === 1 || value === true,
 }))
 
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { isJwtConfigured, verifyAccessToken } from '@/lib/auth-server'
+import { getDb } from '@/lib/db/index'
 
 function authRequest(token?: string) {
   return new Request('http://localhost/api/auth/me', {
@@ -19,9 +21,25 @@ function authRequest(token?: string) {
   })
 }
 
+function mockDb(profile: unknown, membership: unknown) {
+  return {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi
+            .fn()
+            .mockResolvedValueOnce(profile ? [profile] : [])
+            .mockResolvedValueOnce(membership ? [membership] : []),
+        }),
+      }),
+    }),
+  } as never
+}
+
 describe('GET /api/auth/me', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(isJwtConfigured).mockReturnValue(true)
   })
 
   it('未登录返回 401', async () => {
@@ -33,11 +51,7 @@ describe('GET /api/auth/me', () => {
   })
 
   it('token 过期返回 401', async () => {
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error('expired') }),
-      },
-    } as never)
+    vi.mocked(verifyAccessToken).mockResolvedValue(null)
 
     const res = await GET(authRequest('bad-token') as never)
     const { status, body } = await readJsonResponse(res)
@@ -47,30 +61,16 @@ describe('GET /api/auth/me', () => {
   })
 
   it('账号被禁用返回 403', async () => {
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: 'user-1', user_metadata: {} } },
-          error: null,
-        }),
-      },
-    } as never)
-
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockImplementation((table: string) => ({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data:
-                table === 'user_profiles'
-                  ? { phone: '13800138000', nickname: '测试', is_active: false }
-                  : null,
-              error: null,
-            }),
-          }),
-        }),
-      })),
-    } as never)
+    vi.mocked(verifyAccessToken).mockResolvedValue({
+      userId: 'user-1',
+      phone: '13800138000',
+    })
+    vi.mocked(getDb).mockReturnValue(
+      mockDb(
+        { phone: '13800138000', nickname: '测试', isActive: 0 },
+        null,
+      ),
+    )
 
     const res = await GET(authRequest('token') as never)
     const { status, body } = await readJsonResponse(res)
@@ -80,37 +80,23 @@ describe('GET /api/auth/me', () => {
   })
 
   it('有效会员返回 active 状态', async () => {
-    const future = new Date(Date.now() + 86400000).toISOString()
+    const future = new Date(Date.now() + 86400000).toISOString().slice(0, 19).replace('T', ' ')
 
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: 'user-1', user_metadata: { nickname: '会员用户' } } },
-          error: null,
-        }),
-      },
-    } as never)
-
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockImplementation((table: string) => ({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data:
-                table === 'user_profiles'
-                  ? { phone: '13800138000', nickname: '会员用户', is_active: true }
-                  : {
-                      status: 'active',
-                      plan_type: 'monthly',
-                      starts_at: '2024-01-01',
-                      expires_at: future,
-                    },
-              error: null,
-            }),
-          }),
-        }),
-      })),
-    } as never)
+    vi.mocked(verifyAccessToken).mockResolvedValue({
+      userId: 'user-1',
+      phone: '13800138000',
+    })
+    vi.mocked(getDb).mockReturnValue(
+      mockDb(
+        { phone: '13800138000', nickname: '会员用户', isActive: 1 },
+        {
+          status: 'active',
+          planType: 'monthly',
+          startsAt: '2024-01-01 00:00:00',
+          expiresAt: future,
+        },
+      ),
+    )
 
     const res = await GET(authRequest('token') as never)
     const { status, body } = await readJsonResponse<{
@@ -123,30 +109,13 @@ describe('GET /api/auth/me', () => {
   })
 
   it('无会员记录时返回 free 状态', async () => {
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: 'user-1', user_metadata: {} } },
-          error: null,
-        }),
-      },
-    } as never)
-
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockImplementation((table: string) => ({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data:
-                table === 'user_profiles'
-                  ? { phone: '13800138000', nickname: '普通用户', is_active: true }
-                  : null,
-              error: null,
-            }),
-          }),
-        }),
-      })),
-    } as never)
+    vi.mocked(verifyAccessToken).mockResolvedValue({
+      userId: 'user-1',
+      phone: '13800138000',
+    })
+    vi.mocked(getDb).mockReturnValue(
+      mockDb({ phone: '13800138000', nickname: '普通用户', isActive: 1 }, null),
+    )
 
     const res = await GET(authRequest('token') as never)
     const { status, body } = await readJsonResponse<{

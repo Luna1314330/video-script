@@ -1,24 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/auth/login/route'
-import { AUTH_MESSAGES } from '@/lib/auth-users'
+import { AUTH_MESSAGES } from '@/lib/auth-validation'
 import { createJsonRequest, readJsonResponse } from '../helpers/http'
 
-vi.mock('@/lib/supabase-admin', () => ({
-  getSupabaseAdmin: vi.fn(),
+vi.mock('@/lib/db/index', () => ({
+  getDb: vi.fn(),
 }))
 
-vi.mock('@/lib/supabase-auth', () => ({
-  getSupabaseAuthClient: vi.fn(),
+vi.mock('@/lib/auth-server', () => ({
+  isJwtConfigured: vi.fn(),
+  signAccessToken: vi.fn(),
 }))
 
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
+vi.mock('@/lib/auth-users', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/auth-validation')>(
+    '@/lib/auth-validation',
+  )
+  return {
+    ...actual,
+    verifyUserCredentials: vi.fn(),
+  }
+})
+
+import { isJwtConfigured, signAccessToken } from '@/lib/auth-server'
+import { verifyUserCredentials } from '@/lib/auth-users'
+import { getDb } from '@/lib/db/index'
 
 const validBody = { phone: '13800138000', password: '123456' }
 
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getDb).mockReturnValue({} as never)
+    vi.mocked(isJwtConfigured).mockReturnValue(true)
   })
 
   it('手机号格式错误时返回 400', async () => {
@@ -44,18 +58,12 @@ describe('POST /api/auth/login', () => {
   })
 
   it('账号被禁用时返回 403', async () => {
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'u1', is_active: false },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    } as never)
+    vi.mocked(verifyUserCredentials).mockResolvedValue({
+      ok: false,
+      message: AUTH_MESSAGES.banned,
+      status: 403,
+      code: 'BANNED',
+    })
 
     const res = await POST(createJsonRequest('http://localhost/api/auth/login', validBody))
     const { status, body } = await readJsonResponse(res)
@@ -64,37 +72,23 @@ describe('POST /api/auth/login', () => {
     expect(body).toEqual({ error: AUTH_MESSAGES.banned, code: 'BANNED' })
   })
 
-  it('Supabase Auth 未配置时返回 503', async () => {
-    vi.mocked(getSupabaseAdmin).mockReturnValue(null)
-    vi.mocked(getSupabaseAuthClient).mockReturnValue(null)
+  it('数据库未配置时返回 503', async () => {
+    vi.mocked(getDb).mockReturnValue(null)
 
     const res = await POST(createJsonRequest('http://localhost/api/auth/login', validBody))
     const { status, body } = await readJsonResponse(res)
 
     expect(status).toBe(503)
-    expect(body.error).toMatch(/Supabase/)
+    expect(body.error).toMatch(/数据库未配置/)
   })
 
   it('凭据错误时返回 401', async () => {
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }),
-    } as never)
-
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        signInWithPassword: vi.fn().mockResolvedValue({
-          data: { session: null, user: null },
-          error: { message: 'Invalid login credentials' },
-        }),
-        signOut: vi.fn(),
-      },
-    } as never)
+    vi.mocked(verifyUserCredentials).mockResolvedValue({
+      ok: false,
+      message: AUTH_MESSAGES.invalidCredentials,
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    })
 
     const res = await POST(createJsonRequest('http://localhost/api/auth/login', validBody))
     const { status, body } = await readJsonResponse(res)
@@ -104,36 +98,11 @@ describe('POST /api/auth/login', () => {
   })
 
   it('登录成功返回 token 与用户信息', async () => {
-    const profileQuery = {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: { phone: '13800138000', nickname: '小明', is_active: true },
-            error: null,
-          }),
-        }),
-      }),
-    }
-
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      from: vi.fn().mockImplementation((table) => {
-        if (table === 'user_profiles') return profileQuery
-        return profileQuery
-      }),
-    } as never)
-
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        signInWithPassword: vi.fn().mockResolvedValue({
-          data: {
-            session: { access_token: 'access-token', refresh_token: 'refresh-token' },
-            user: { id: 'user-1', user_metadata: { nickname: '小明' } },
-          },
-          error: null,
-        }),
-        signOut: vi.fn(),
-      },
-    } as never)
+    vi.mocked(verifyUserCredentials).mockResolvedValue({
+      ok: true,
+      user: { id: 'user-1', phone: '13800138000', nickname: '小明' },
+    })
+    vi.mocked(signAccessToken).mockResolvedValue('access-token')
 
     const res = await POST(createJsonRequest('http://localhost/api/auth/login', validBody))
     const { status, body } = await readJsonResponse<{

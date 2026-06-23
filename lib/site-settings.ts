@@ -1,4 +1,5 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AppDb } from '@/lib/db/index'
+import { systemSettings } from '@/lib/db/schema'
 
 export type PlanConfig = {
   /** 优惠价（实际售价） */
@@ -111,6 +112,7 @@ export function syncRuntimeSiteSettings(settings: SiteSettings): void {
 
 function isMissingTableError(message: string): boolean {
   return (
+    message.includes("doesn't exist") ||
     message.includes('Could not find the table') ||
     (message.includes('relation') && message.includes('does not exist'))
   )
@@ -170,33 +172,59 @@ function siteSettingsToDbRows(settings: SiteSettings) {
 }
 
 export async function persistSiteSettingsToDb(
-  supabase: SupabaseClient,
+  db: AppDb,
   settings: SiteSettings,
 ): Promise<void> {
   const rows = siteSettingsToDbRows(settings)
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
 
   for (const row of rows) {
-    const { error } = await supabase.from(SYSTEM_SETTINGS_TABLE).upsert(row, {
-      onConflict: 'id',
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
+    await db
+      .insert(systemSettings)
+      .values({
+        id: row.id,
+        value: row.value,
+        updatedAt: now,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          value: row.value,
+          updatedAt: now,
+        },
+      })
   }
 
   syncRuntimeSiteSettings(settings)
 }
 
 export async function hydrateSiteSettingsFromDb(
-  supabase: SupabaseClient,
+  db: AppDb,
 ): Promise<HydrateSiteSettingsResult> {
-  const { data, error } = await supabase
-    .from(SYSTEM_SETTINGS_TABLE)
-    .select('id, value')
+  try {
+    const data = await db
+      .select({ id: systemSettings.id, value: systemSettings.value })
+      .from(systemSettings)
 
-  if (error) {
-    if (isMissingTableError(error.message)) {
+    if (!data.length) {
+      const defaults = applyPolicyLocks(structuredClone(INITIAL_SITE_SETTINGS))
+      await persistSiteSettingsToDb(db, defaults)
+      return {
+        settings: getSiteSettings(),
+        persisted: true,
+        tableReady: true,
+      }
+    }
+
+    syncRuntimeSiteSettings(siteSettingsFromDbRows(data))
+
+    return {
+      settings: getSiteSettings(),
+      persisted: true,
+      tableReady: true,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingTableError(message)) {
       syncRuntimeSiteSettings(structuredClone(INITIAL_SITE_SETTINGS))
       settingsHydrated = false
       return {
@@ -205,30 +233,12 @@ export async function hydrateSiteSettingsFromDb(
         tableReady: false,
       }
     }
-    throw new Error(error.message)
-  }
-
-  if (!data?.length) {
-    const defaults = applyPolicyLocks(structuredClone(INITIAL_SITE_SETTINGS))
-    await persistSiteSettingsToDb(supabase, defaults)
-    return {
-      settings: getSiteSettings(),
-      persisted: true,
-      tableReady: true,
-    }
-  }
-
-  syncRuntimeSiteSettings(siteSettingsFromDbRows(data))
-
-  return {
-    settings: getSiteSettings(),
-    persisted: true,
-    tableReady: true,
+    throw error instanceof Error ? error : new Error(message)
   }
 }
 
 export async function ensureSiteSettingsHydrated(
-  supabase: SupabaseClient,
+  db: AppDb,
 ): Promise<HydrateSiteSettingsResult> {
   if (settingsHydrated) {
     return {
@@ -239,7 +249,7 @@ export async function ensureSiteSettingsHydrated(
   }
 
   if (!hydratePromise) {
-    hydratePromise = hydrateSiteSettingsFromDb(supabase).finally(() => {
+    hydratePromise = hydrateSiteSettingsFromDb(db).finally(() => {
       hydratePromise = null
     })
   }

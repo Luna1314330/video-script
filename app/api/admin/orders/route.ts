@@ -1,35 +1,52 @@
+import { and, desc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { mockAdminOrdersResponse } from '@/lib/admin-api-mock'
-import {
-  DB,
-  mapAdminOrder,
-  USER_PROFILE_EMBED,
-} from '@/lib/db/tables'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { getDb } from '@/lib/db/index'
+import { memberships, orders, userProfiles } from '@/lib/db/schema'
+import { mapAdminOrder } from '@/lib/db/tables'
 import { requireAdminApi } from '@/lib/admin-auth-server'
 
-// GET - 获取所有订单
 export async function GET(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
+  const db = getDb()
+  if (!db) {
     return NextResponse.json(mockAdminOrdersResponse())
   }
 
   try {
-    const { data: orders, error } = await supabaseAdmin
-      .from(DB.orders)
-      .select(`*, ${USER_PROFILE_EMBED}`)
-      .order('created_at', { ascending: false })
+    const rows = await db
+      .select({
+        id: orders.id,
+        userId: orders.userId,
+        orderNo: orders.orderNo,
+        amount: orders.amount,
+        paymentMethod: orders.paymentMethod,
+        status: orders.status,
+        paidAt: orders.paidAt,
+        createdAt: orders.createdAt,
+        phone: userProfiles.phone,
+        nickname: userProfiles.nickname,
+      })
+      .from(orders)
+      .leftJoin(userProfiles, eq(orders.userId, userProfiles.id))
+      .orderBy(desc(orders.createdAt))
 
-    if (error) {
-      console.error('获取订单列表失败:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-    }
+    const result = rows.map((row) =>
+      mapAdminOrder({
+        id: row.id,
+        user_id: row.userId,
+        order_no: row.orderNo,
+        amount: row.amount,
+        payment_method: row.paymentMethod,
+        status: row.status,
+        paid_at: row.paidAt,
+        created_at: row.createdAt,
+        user_profiles: { phone: row.phone, nickname: row.nickname },
+      }),
+    )
 
-    const result = (orders || []).map(mapAdminOrder)
     return NextResponse.json({ success: true, data: result })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '服务器错误'
@@ -38,14 +55,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - 更新订单状态（退款）
 export async function PUT(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
-    return NextResponse.json({ success: false, error: 'Supabase 未配置' }, { status: 503 })
+  const db = getDb()
+  if (!db) {
+    return NextResponse.json({ success: false, error: '数据库未配置' }, { status: 503 })
   }
 
   try {
@@ -57,18 +73,23 @@ export async function PUT(request: NextRequest) {
     }
 
     if (status === 'refunded') {
-      const { data: order, error: orderError } = await supabaseAdmin
-        .from(DB.orders)
-        .select('user_id, payment_method, order_no')
-        .eq('id', id)
-        .single()
+      const orderRows = await db
+        .select({
+          userId: orders.userId,
+          paymentMethod: orders.paymentMethod,
+          orderNo: orders.orderNo,
+        })
+        .from(orders)
+        .where(eq(orders.id, id))
+        .limit(1)
 
-      if (orderError || !order) {
+      const order = orderRows[0]
+      if (!order) {
         return NextResponse.json({ success: false, error: '订单不存在' }, { status: 404 })
       }
 
       const manual =
-        order.payment_method === 'manual' || (order.order_no || '').startsWith('MAN')
+        order.paymentMethod === 'manual' || (order.orderNo || '').startsWith('MAN')
       if (manual) {
         return NextResponse.json(
           { success: false, error: '手动开通订单不支持退款，请在会员管理中关闭会员' },
@@ -77,29 +98,23 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const { error } = await supabaseAdmin
-      .from(DB.orders)
-      .update({ status })
-      .eq('id', id)
-
-    if (error) {
-      console.error('更新订单状态失败:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-    }
+    await db.update(orders).set({ status }).where(eq(orders.id, id))
 
     if (status === 'refunded') {
-      const { data: order } = await supabaseAdmin
-        .from(DB.orders)
-        .select('user_id')
-        .eq('id', id)
-        .single()
+      const orderRows = await db
+        .select({ userId: orders.userId })
+        .from(orders)
+        .where(eq(orders.id, id))
+        .limit(1)
 
+      const order = orderRows[0]
       if (order) {
-        await supabaseAdmin
-          .from(DB.memberships)
-          .update({ status: 'cancelled', plan_type: null })
-          .eq('user_id', order.user_id)
-          .eq('status', 'active')
+        await db
+          .update(memberships)
+          .set({ status: 'cancelled', planType: null })
+          .where(
+            and(eq(memberships.userId, order.userId), eq(memberships.status, 'active')),
+          )
       }
     }
 

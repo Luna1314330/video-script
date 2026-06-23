@@ -47,9 +47,18 @@ export async function fetchScriptHistory(options?: {
     throw new Error(data.error || '获取历史脚本失败')
   }
 
+  const pageNum = Number(data.page) || page
+  const pageSizeNum = Number(data.pageSize) || pageSize
+  const total = Number(data.total) || 0
+
   return {
-    items: data.data as GenerationHistoryEntry[],
-    pagination: data.pagination,
+    items: (data.items ?? []) as GenerationHistoryEntry[],
+    pagination: {
+      page: pageNum,
+      pageSize: pageSizeNum,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSizeNum)),
+    },
   }
 }
 

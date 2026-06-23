@@ -11,11 +11,11 @@ export async function fetchGenerationQuota(): Promise<GenerationQuotaInfo> {
   const res = await authFetch('/api/generation/quota', { headers: getAuthHeaders() })
   const data = await res.json()
 
-  if (!res.ok || !data.data) {
+  if (!res.ok || !data.quota) {
     throw new Error(data.error || '获取额度失败')
   }
 
-  return data.data as GenerationQuotaInfo
+  return data.quota as GenerationQuotaInfo
 }
 
 export function notifyQuotaUpdated() {

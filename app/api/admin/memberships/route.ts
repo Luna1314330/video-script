@@ -1,39 +1,52 @@
+import { desc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { activateUserMembership } from '@/lib/activate-membership'
 import { mockAdminMembershipsResponse } from '@/lib/admin-api-mock'
-import {
-  DB,
-  mapAdminMembership,
-  USER_PROFILE_EMBED,
-} from '@/lib/db/tables'
+import { getDb } from '@/lib/db/index'
+import { memberships, userProfiles } from '@/lib/db/schema'
+import { mapAdminMembership } from '@/lib/db/tables'
 import { ensureSiteSettingsHydrated } from '@/lib/site-settings'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { requireAdminApi } from '@/lib/admin-auth-server'
 
-// GET - 获取所有会员列表
 export async function GET(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
+  const db = getDb()
+  if (!db) {
     return NextResponse.json(mockAdminMembershipsResponse())
   }
 
   try {
-    await ensureSiteSettingsHydrated(supabaseAdmin)
+    await ensureSiteSettingsHydrated(db)
 
-    const { data: memberships, error: membershipsError } = await supabaseAdmin
-      .from(DB.memberships)
-      .select(`*, ${USER_PROFILE_EMBED}`)
-      .order('starts_at', { ascending: false })
+    const rows = await db
+      .select({
+        id: memberships.id,
+        userId: memberships.userId,
+        status: memberships.status,
+        planType: memberships.planType,
+        startsAt: memberships.startsAt,
+        expiresAt: memberships.expiresAt,
+        phone: userProfiles.phone,
+        nickname: userProfiles.nickname,
+      })
+      .from(memberships)
+      .leftJoin(userProfiles, eq(memberships.userId, userProfiles.id))
+      .orderBy(desc(memberships.startsAt))
 
-    if (membershipsError) {
-      console.error('获取会员列表失败:', membershipsError)
-      return NextResponse.json({ success: false, error: membershipsError.message }, { status: 500 })
-    }
+    const result = rows.map((row) =>
+      mapAdminMembership({
+        id: row.id,
+        user_id: row.userId,
+        status: row.status,
+        plan_type: row.planType,
+        starts_at: row.startsAt,
+        expires_at: row.expiresAt,
+        user_profiles: { phone: row.phone, nickname: row.nickname },
+      }),
+    )
 
-    const result = (memberships || []).map(mapAdminMembership)
     return NextResponse.json({ success: true, data: result })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '服务器错误'
@@ -42,23 +55,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - 管理员手动开通/续费会员
 export async function POST(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
-    return NextResponse.json({ success: false, error: 'Supabase 未配置' }, { status: 503 })
+  const db = getDb()
+  if (!db) {
+    return NextResponse.json({ success: false, error: '数据库未配置' }, { status: 503 })
   }
 
   try {
-    await ensureSiteSettingsHydrated(supabaseAdmin)
+    await ensureSiteSettingsHydrated(db)
 
     const body = await request.json()
     const { userId, type } = body
 
-    const result = await activateUserMembership(supabaseAdmin, {
+    const result = await activateUserMembership(db, {
       userId,
       type,
       source: 'admin',
@@ -92,14 +104,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - 更新会员状态
 export async function PUT(request: NextRequest) {
   const denied = requireAdminApi(request)
   if (denied) return denied
 
-  const supabaseAdmin = getSupabaseAdmin()
-  if (!supabaseAdmin) {
-    return NextResponse.json({ success: false, error: 'Supabase 未配置' }, { status: 503 })
+  const db = getDb()
+  if (!db) {
+    return NextResponse.json({ success: false, error: '数据库未配置' }, { status: 503 })
   }
 
   try {
@@ -115,20 +126,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: '无效的会员状态' }, { status: 400 })
     }
 
-    const updatePayload: { status: string; plan_type?: string | null } = { status }
+    const updatePayload: {
+      status: string
+      planType?: string | null
+    } = { status }
+
     if (status !== 'active') {
-      updatePayload.plan_type = null
+      updatePayload.planType = null
     }
 
-    const { error } = await supabaseAdmin
-      .from(DB.memberships)
-      .update(updatePayload)
-      .eq('id', id)
-
-    if (error) {
-      console.error('更新会员状态失败:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-    }
+    await db.update(memberships).set(updatePayload).where(eq(memberships.id, id))
 
     return NextResponse.json({ success: true, message: '会员状态更新成功' })
   } catch (error: unknown) {

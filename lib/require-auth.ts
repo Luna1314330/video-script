@@ -1,8 +1,13 @@
-import type { User } from '@supabase/supabase-js'
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
+import { verifyAccessToken, isJwtConfigured } from '@/lib/auth-server'
+
+export type AuthUser = {
+  id: string
+  phone?: string
+  nickname?: string
+}
 
 export type AuthResult =
-  | { ok: true; user: User; token: string }
+  | { ok: true; user: AuthUser; token: string }
   | { ok: false; message: string; status: number }
 
 export function getBearerToken(request: Request): string | null {
@@ -18,15 +23,18 @@ export async function requireAuthUser(request: Request): Promise<AuthResult> {
     return { ok: false, message: '请先登录后再生成脚本', status: 401 }
   }
 
-  const supabaseAuth = getSupabaseAuthClient()
-  if (!supabaseAuth) {
-    return { ok: false, message: 'Supabase 未配置', status: 503 }
+  if (!isJwtConfigured()) {
+    return { ok: false, message: '认证未配置', status: 503 }
   }
 
-  const { data: { user }, error } = await supabaseAuth.auth.getUser(token)
-  if (error || !user) {
+  const payload = await verifyAccessToken(token)
+  if (!payload) {
     return { ok: false, message: '登录已过期，请重新登录', status: 401 }
   }
 
-  return { ok: true, user, token }
+  return {
+    ok: true,
+    user: { id: payload.userId, phone: payload.phone },
+    token,
+  }
 }

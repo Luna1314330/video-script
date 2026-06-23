@@ -1,5 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { DB, generateOrderNo } from '@/lib/db/tables'
+import { eq } from 'drizzle-orm'
+import type { AppDb } from '@/lib/db/index'
+import { isActiveFlag, newId } from '@/lib/db/index'
+import { memberships, orders, userProfiles } from '@/lib/db/schema'
+import { generateOrderNo } from '@/lib/db/tables'
 import type { MembershipPlanType } from '@/lib/db/tables'
 import { getMembershipPrice, isMembershipPlanEnabled } from '@/lib/site-settings'
 
@@ -26,7 +29,6 @@ export function extendMembershipExpireDate(base: Date, type: string): Date {
 type ActivateMembershipInput = {
   userId: string
   type: MembershipPlanType | string
-  /** admin 手动开通 / 用户自助购买 */
   source?: 'admin' | 'user'
   paymentMethod?: 'wechat' | 'alipay' | 'manual'
 }
@@ -48,8 +50,12 @@ type ActivateMembershipFailure = {
   status: number
 }
 
+function toMysqlDatetime(date: Date): string {
+  return date.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 export async function activateUserMembership(
-  supabaseAdmin: SupabaseClient,
+  db: AppDb,
   input: ActivateMembershipInput,
 ): Promise<ActivateMembershipSuccess | ActivateMembershipFailure> {
   const { userId, type } = input
@@ -63,128 +69,109 @@ export async function activateUserMembership(
     return { success: false, message: '该会员套餐暂未开放', status: 400 }
   }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from(DB.userProfiles)
-    .select('id, is_active, phone, nickname')
-    .eq('id', userId)
-    .maybeSingle()
+  const profileRows = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.id, userId))
+    .limit(1)
 
-  if (profileError) {
-    return { success: false, message: profileError.message, status: 500 }
-  }
-
+  const profile = profileRows[0]
   if (!profile) {
     return { success: false, message: '用户不存在', status: 404 }
   }
 
-  if (profile.is_active === false) {
+  if (!isActiveFlag(profile.isActive)) {
     return { success: false, message: '该用户已被禁用，无法开通会员', status: 403 }
   }
 
   const now = new Date()
-  const startsAt = now.toISOString()
+  const startsAt = toMysqlDatetime(now)
   let expiresAt = extendMembershipExpireDate(now, type)
 
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from(DB.memberships)
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle()
+  const existingRows = await db
+    .select()
+    .from(memberships)
+    .where(eq(memberships.userId, userId))
+    .limit(1)
 
-  if (existingError) {
-    return { success: false, message: existingError.message, status: 500 }
-  }
+  const existing = existingRows[0]
 
   const shouldRenewFromCurrent =
     existing?.status === 'active' &&
-    existing.expires_at &&
-    new Date(existing.expires_at) > now
+    existing.expiresAt &&
+    new Date(existing.expiresAt) > now
 
-  if (shouldRenewFromCurrent && existing.expires_at) {
-    expiresAt = extendMembershipExpireDate(new Date(existing.expires_at), type)
+  if (shouldRenewFromCurrent && existing.expiresAt) {
+    expiresAt = extendMembershipExpireDate(new Date(existing.expiresAt), type)
   }
 
   const planType = type as MembershipPlanType
+  const expiresAtStr = toMysqlDatetime(expiresAt)
   const membershipPayload = {
     status: 'active' as const,
-    plan_type: planType,
-    starts_at:
-      !existing || existing.status === 'free' || existing.status === 'cancelled' || existing.status === 'expired'
+    planType,
+    startsAt:
+      !existing ||
+      existing.status === 'free' ||
+      existing.status === 'cancelled' ||
+      existing.status === 'expired'
         ? startsAt
-        : existing.starts_at || startsAt,
-    expires_at: expiresAt.toISOString(),
+        : existing.startsAt || startsAt,
+    expiresAt: expiresAtStr,
   }
 
   let membershipId: string
 
   if (existing) {
-    const { data, error } = await supabaseAdmin
-      .from(DB.memberships)
-      .update(membershipPayload)
-      .eq('id', existing.id)
-      .select('id')
-      .single()
-
-    if (error) {
-      console.error('更新会员失败:', error)
-      return { success: false, message: error.message, status: 500 }
-    }
-    membershipId = data.id
+    membershipId = existing.id
+    await db
+      .update(memberships)
+      .set(membershipPayload)
+      .where(eq(memberships.id, existing.id))
   } else {
-    const { data, error } = await supabaseAdmin
-      .from(DB.memberships)
-      .insert({
-        user_id: userId,
-        ...membershipPayload,
-      })
-      .select('id')
-      .single()
-
-    if (error) {
-      console.error('创建会员失败:', error)
-      return { success: false, message: error.message, status: 500 }
-    }
-    membershipId = data.id
+    membershipId = newId()
+    await db.insert(memberships).values({
+      id: membershipId,
+      userId,
+      ...membershipPayload,
+    })
   }
 
   const amount = source === 'admin' ? 0 : getMembershipPrice(type)
   const paymentMethod =
     input.paymentMethod ?? (source === 'admin' ? 'manual' : 'wechat')
-  const orderNo =
-    source === 'admin' ? `MAN${generateOrderNo()}` : generateOrderNo()
+  const orderNo = source === 'admin' ? `MAN${generateOrderNo()}` : generateOrderNo()
+  const orderId = newId()
 
-  const { data: order, error: orderError } = await supabaseAdmin
-    .from(DB.orders)
-    .insert({
-      user_id: userId,
-      order_no: orderNo,
-      amount,
-      payment_method: paymentMethod,
+  try {
+    await db.insert(orders).values({
+      id: orderId,
+      userId,
+      orderNo,
+      amount: String(amount),
+      paymentMethod,
       status: 'paid',
-      paid_at: startsAt,
+      paidAt: startsAt,
+      createdAt: startsAt,
     })
-    .select('id, order_no')
-    .single()
-
-  if (orderError) {
-    console.error('创建订单失败:', orderError)
-    // 会员已更新，订单失败时回滚会员到之前状态
+  } catch (error) {
+    console.error('创建订单失败:', error)
     if (existing) {
-      await supabaseAdmin
-        .from(DB.memberships)
-        .update({
+      await db
+        .update(memberships)
+        .set({
           status: existing.status,
-          plan_type: existing.plan_type,
-          starts_at: existing.starts_at,
-          expires_at: existing.expires_at,
+          planType: existing.planType,
+          startsAt: existing.startsAt,
+          expiresAt: existing.expiresAt,
         })
-        .eq('id', existing.id)
+        .where(eq(memberships.id, existing.id))
     } else {
-      await supabaseAdmin.from(DB.memberships).delete().eq('id', membershipId)
+      await db.delete(memberships).where(eq(memberships.id, membershipId))
     }
     return {
       success: false,
-      message: `会员开通失败：${orderError.message}`,
+      message: `会员开通失败：${error instanceof Error ? error.message : '未知错误'}`,
       status: 500,
     }
   }
@@ -192,10 +179,10 @@ export async function activateUserMembership(
   return {
     success: true,
     membershipId,
-    orderId: order.id,
-    orderNo: order.order_no,
-    startsAt: membershipPayload.starts_at,
-    expiresAt: expiresAt.toISOString(),
+    orderId,
+    orderNo,
+    startsAt: membershipPayload.startsAt,
+    expiresAt: expiresAtStr,
     amount,
     planType,
   }

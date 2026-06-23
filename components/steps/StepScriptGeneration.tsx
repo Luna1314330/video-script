@@ -165,8 +165,8 @@ export function StepScriptGeneration() {
 
   useEffect(() => {
     if (!authReady || !loggedIn) return
-    if (quotaLoading || quota === null) return
-    if (noQuotaLeft) return
+    if (quotaLoading) return
+    if (quota !== null && noQuotaLeft) return
     if (!contentStrategy || !selectedTopic) return
     const needsGenerate = !script || script.contentItemId !== selectedTopic.id
     if (needsGenerate) {
@@ -180,6 +180,13 @@ export function StepScriptGeneration() {
   const showQuotaExhausted = !loading && !script && (noQuotaLeft || isQuotaExhaustedError(error))
   const showRetry =
     !loading && !script && Boolean(error) && !noQuotaLeft && !isQuotaExhaustedError(error)
+  const showStart =
+    !loading &&
+    !script &&
+    !error &&
+    !noQuotaLeft &&
+    Boolean(selectedTopic) &&
+    !isQuotaExhaustedError(error)
 
   if (!authReady) {
     return null
@@ -268,6 +275,15 @@ export function StepScriptGeneration() {
           currentPhase={scriptProgressPhase}
           tips={SCRIPT_LOADING_TIPS}
         />
+      )}
+
+      {showStart && (
+        <div className="rounded-xl border border-border/80 bg-card/60 p-8 text-center space-y-4 mb-6">
+          <p className="text-sm text-muted-foreground">已选定选题，点击下方按钮开始生成脚本</p>
+          <Button onClick={() => void generate('manual')} disabled={noQuotaLeft}>
+            生成脚本
+          </Button>
+        </div>
       )}
 
       {showRetry && (

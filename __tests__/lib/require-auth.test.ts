@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getBearerToken, requireAuthUser } from '@/lib/require-auth'
 
-vi.mock('@/lib/supabase-auth', () => ({
-  getSupabaseAuthClient: vi.fn(),
+vi.mock('@/lib/auth-server', () => ({
+  isJwtConfigured: vi.fn(),
+  verifyAccessToken: vi.fn(),
 }))
 
-import { getSupabaseAuthClient } from '@/lib/supabase-auth'
+import { isJwtConfigured, verifyAccessToken } from '@/lib/auth-server'
 
 describe('getBearerToken', () => {
   it('从 Authorization 头提取 token', () => {
@@ -37,8 +38,8 @@ describe('requireAuthUser', () => {
     })
   })
 
-  it('Supabase 未配置时返回 503', async () => {
-    vi.mocked(getSupabaseAuthClient).mockReturnValue(null)
+  it('JWT 未配置时返回 503', async () => {
+    vi.mocked(isJwtConfigured).mockReturnValue(false)
 
     const result = await requireAuthUser(
       new Request('http://localhost', {
@@ -46,15 +47,12 @@ describe('requireAuthUser', () => {
       }),
     )
 
-    expect(result).toEqual({ ok: false, message: 'Supabase 未配置', status: 503 })
+    expect(result).toEqual({ ok: false, message: '认证未配置', status: 503 })
   })
 
   it('token 无效时返回 401', async () => {
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error('invalid') }),
-      },
-    } as never)
+    vi.mocked(isJwtConfigured).mockReturnValue(true)
+    vi.mocked(verifyAccessToken).mockResolvedValue(null)
 
     const result = await requireAuthUser(
       new Request('http://localhost', {
@@ -70,12 +68,11 @@ describe('requireAuthUser', () => {
   })
 
   it('token 有效时返回用户信息', async () => {
-    const user = { id: 'user-1', email: '13800138000@script-workshop.com' }
-    vi.mocked(getSupabaseAuthClient).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }),
-      },
-    } as never)
+    vi.mocked(isJwtConfigured).mockReturnValue(true)
+    vi.mocked(verifyAccessToken).mockResolvedValue({
+      userId: 'user-1',
+      phone: '13800138000',
+    })
 
     const result = await requireAuthUser(
       new Request('http://localhost', {
@@ -83,6 +80,10 @@ describe('requireAuthUser', () => {
       }),
     )
 
-    expect(result).toEqual({ ok: true, user, token: 'valid-token' })
+    expect(result).toEqual({
+      ok: true,
+      user: { id: 'user-1', phone: '13800138000' },
+      token: 'valid-token',
+    })
   })
 })
