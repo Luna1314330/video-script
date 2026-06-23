@@ -1,7 +1,6 @@
 import { desc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminUser } from '@/lib/admin-users'
-import { mockAdminUsersResponse } from '@/lib/admin-api-mock'
 import { getDb, isActiveFlag } from '@/lib/db/index'
 import { memberships, userProfiles } from '@/lib/db/schema'
 import { mapAdminUser } from '@/lib/db/tables'
@@ -13,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const db = getDb()
   if (!db) {
-    return NextResponse.json(mockAdminUsersResponse())
+    return NextResponse.json({ success: false, error: '数据库未配置，请设置 DATABASE_URL' }, { status: 503 })
   }
 
   try {

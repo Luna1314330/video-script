@@ -244,16 +244,7 @@ export default function MembershipsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [activateDialogOpen, setActivateDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-
-  // Mock数据
-  const mockMemberships: Membership[] = [
-    { id: '1', userId: '1', phone: '13800138001', nickname: '张三', planLabel: '年卡', startDate: '2024-01-15', expireDate: '2025-01-15', status: 'active' },
-    { id: '2', userId: '2', phone: '13800138002', nickname: '李四', planLabel: '月卡', startDate: '2024-02-01', expireDate: '2024-05-01', status: 'active' },
-    { id: '3', userId: '3', phone: '13800138003', nickname: '王五', planLabel: '—', startDate: '2024-03-01', expireDate: '2024-04-01', status: 'expired' },
-  ]
-  const mockSettings: Settings = {
-    membership: INITIAL_SITE_SETTINGS.membership,
-  }
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -262,26 +253,30 @@ export default function MembershipsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const [membershipsRes, settingsRes] = await Promise.all([
-        fetch('/api/admin/memberships'),
-        fetch('/api/admin/settings'),
+        fetch('/api/admin/memberships', { credentials: 'include' }),
+        fetch('/api/admin/settings', { credentials: 'include' }),
       ])
       const membershipsData = await membershipsRes.json()
       const settingsData = await settingsRes.json()
-      
+
       if (membershipsData.success) {
         setMemberships(membershipsData.data)
       } else {
-        setMemberships(mockMemberships)
+        setMemberships([])
+        setLoadError(membershipsData.error || '获取会员列表失败')
+        toast.error(membershipsData.error || '获取会员列表失败')
       }
       if (settingsData.success) {
         setSettings({ membership: settingsData.data.membership_pricing })
       } else {
-        setSettings(mockSettings)
+        setSettings({ membership: INITIAL_SITE_SETTINGS.membership })
       }
     } catch {
-      setMemberships(mockMemberships)
-      setSettings(mockSettings)
+      setMemberships([])
+      setLoadError('获取会员列表失败')
+      toast.error('获取会员列表失败')
     } finally {
       setLoading(false)
     }
@@ -353,6 +348,12 @@ export default function MembershipsPage() {
           手动开通
         </Button>
       </div>
+
+      {loadError && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {loadError}
+        </p>
+      )}
 
       <Card>
         <CardHeader>

@@ -17,16 +17,17 @@ interface Stats {
 }
 
 const mockStats: Stats = {
-  totalUsers: 3,
-  totalMemberships: 3,
-  totalRevenue: 437,
-  totalScripts: 4,
+  totalUsers: 0,
+  totalMemberships: 0,
+  totalRevenue: 0,
+  totalScripts: 0,
 }
 
 async function fetchJsonSafe<T>(url: string): Promise<T | null> {
-  const res = await fetch(url)
+  const res = await fetch(url, { credentials: 'include' })
   const contentType = res.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) return null
+  if (!res.ok) return null
   return res.json() as Promise<T>
 }
 

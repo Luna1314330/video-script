@@ -52,13 +52,6 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
-  // Mock数据
-  const mockOrders: Order[] = [
-    { id: '1', orderNo: 'ORD20240115001', userId: '1', phone: '13800138001', nickname: '张三', amount: 299, paymentMethod: '微信支付', status: 'paid', paidAt: '2024-01-15 10:36:00', createdAt: '2024-01-15 10:35:00' },
-    { id: '2', orderNo: 'ORD20240120001', userId: '2', phone: '13800138002', nickname: '李四', amount: 99, paymentMethod: '支付宝', status: 'paid', paidAt: '2024-01-20 14:21:00', createdAt: '2024-01-20 14:20:00' },
-    { id: '3', orderNo: 'ORD20240125001', userId: '3', phone: '13800138003', nickname: '王五', amount: 39, paymentMethod: '微信支付', status: 'refunded', paidAt: '2024-01-25 09:16:00', createdAt: '2024-01-25 09:15:00' },
-  ]
-
   useEffect(() => {
     fetchOrders()
   }, [])
@@ -66,15 +59,17 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/orders')
+      const res = await fetch('/api/admin/orders', { credentials: 'include' })
       const data = await res.json()
       if (data.success) {
         setOrders(data.data)
       } else {
-        setOrders(mockOrders)
+        setOrders([])
+        toast.error(data.error || '获取订单列表失败')
       }
     } catch {
-      setOrders(mockOrders)
+      setOrders([])
+      toast.error('获取订单列表失败')
     } finally {
       setLoading(false)
     }

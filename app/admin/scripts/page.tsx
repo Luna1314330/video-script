@@ -47,13 +47,6 @@ export default function ScriptsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedScript, setSelectedScript] = useState<ScriptHistory | null>(null)
 
-  // Mock数据
-  const mockScripts: ScriptHistory[] = [
-    { id: '1', userId: '1', phone: '13800138001', industry: '餐饮', productName: '奶茶店', productDesc: '新品上市', shootScene: '店内', topic: '奶茶制作全过程', createdAt: '2024-01-15 10:30:00' },
-    { id: '2', userId: '2', phone: '13800138002', industry: '服装', productName: '运动鞋', productDesc: '透气舒适', shootScene: '户外', topic: '运动穿搭推荐', createdAt: '2024-01-20 14:20:00' },
-    { id: '3', userId: '1', phone: '13800138001', industry: '美妆', productName: '口红', productDesc: '滋润不干', shootScene: '室内', topic: '日常妆容教程', createdAt: '2024-01-25 09:15:00' },
-  ]
-
   useEffect(() => {
     fetchScripts()
   }, [])
@@ -62,15 +55,15 @@ export default function ScriptsPage() {
     try {
       setLoading(true)
       const keyword = searchQuery ? `?keyword=${encodeURIComponent(searchQuery)}` : ''
-      const res = await fetch(`/api/admin/scripts${keyword}`)
+      const res = await fetch(`/api/admin/scripts${keyword}`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) {
         setScripts(data.data)
       } else {
-        setScripts(mockScripts)
+        setScripts([])
       }
     } catch {
-      setScripts(mockScripts)
+      setScripts([])
     } finally {
       setLoading(false)
     }
