@@ -9,18 +9,18 @@ export type AppDb = MySql2Database<typeof schema>
 let pool: mysql.Pool | null = null
 let cachedDb: AppDb | null | undefined
 
-function loadEnvFromLocalFile(): void {
-  if (process.env.DATABASE_URL) return
-
+function loadEnvFile(fileName: string): void {
   try {
     const fs = require('fs')
     const path = require('path')
-    const envPath = path.join(process.cwd(), '.env.local')
+    const envPath = path.join(process.cwd(), fileName)
     if (!fs.existsSync(envPath)) return
 
     const content = fs.readFileSync(envPath, 'utf-8') as string
     for (const line of content.split('\n')) {
-      const match = line.match(/^([^=]+)=(.*)$/)
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const match = trimmed.match(/^([^=]+)=(.*)$/)
       if (!match) continue
       const key = match[1].trim()
       const value = match[2].trim().replace(/^['"]|['"]$/g, '')
@@ -31,6 +31,40 @@ function loadEnvFromLocalFile(): void {
   } catch {
     // ignore
   }
+}
+
+function loadEnvFromLocalFile(): void {
+  if (process.env.DATABASE_URL) return
+
+  const envFiles =
+    process.env.NODE_ENV === 'production'
+      ? ['.env.production.local', '.env.production', '.env.local', '.env']
+      : ['.env.local', '.env']
+
+  for (const fileName of envFiles) {
+    loadEnvFile(fileName)
+    if (process.env.DATABASE_URL) return
+  }
+}
+
+/** 将 MySQL 错误转为可展示的提示 */
+export function formatDbError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+
+  if (message.includes('ER_NO_SUCH_TABLE') || message.includes("doesn't exist")) {
+    return '数据库表未初始化，请在 MySQL 执行 storage/database/schema.mysql.sql'
+  }
+  if (message.includes('ECONNREFUSED') || message.includes('ETIMEDOUT') || message.includes('ENOTFOUND')) {
+    return '无法连接数据库，请检查 DATABASE_URL、安全组与白名单'
+  }
+  if (message.includes('Access denied')) {
+    return '数据库账号或密码错误，请检查 DATABASE_URL（密码含特殊字符需 URL 编码）'
+  }
+  if (message.includes('Unknown database')) {
+    return '数据库不存在，请检查 DATABASE_URL 中的库名'
+  }
+
+  return message
 }
 
 export function isDbConfigured(): boolean {

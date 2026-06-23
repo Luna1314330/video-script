@@ -6,7 +6,7 @@ import {
   validateUserPhone,
 } from '@/lib/auth-validation'
 import type { AppDb } from '@/lib/db/index'
-import { isActiveFlag, newId } from '@/lib/db/index'
+import { formatDbError, isActiveFlag, newId } from '@/lib/db/index'
 import { memberships, userProfiles } from '@/lib/db/schema'
 import { mapAdminUser } from '@/lib/db/tables'
 
@@ -125,7 +125,19 @@ export async function provisionAppUser(
   }
 
   const nickname = input.nickname?.trim() || `用户${phone.slice(-4)}`
-  const existingProfile = await findUserProfileByPhone(db, phone)
+
+  let existingProfile
+  try {
+    existingProfile = await findUserProfileByPhone(db, phone)
+  } catch (error) {
+    console.error('查询用户失败:', error)
+    return {
+      success: false,
+      message: formatDbError(error),
+      status: 500,
+      code: 'DB_ERROR',
+    }
+  }
 
   if (existingProfile) {
     if (existingProfile.is_active === false) {
@@ -172,8 +184,9 @@ export async function provisionAppUser(
     console.error('创建用户失败:', error)
     return {
       success: false,
-      message: error instanceof Error ? error.message : '创建用户失败',
+      message: formatDbError(error),
       status: 500,
+      code: 'DB_ERROR',
     }
   }
 

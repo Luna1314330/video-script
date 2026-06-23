@@ -6,7 +6,7 @@ export const AUTH_MESSAGES = {
   invalidCredentials: '手机号或密码错误',
 } as const
 
-export type AuthErrorCode = 'ALREADY_REGISTERED' | 'BANNED' | 'INVALID_CREDENTIALS'
+export type AuthErrorCode = 'ALREADY_REGISTERED' | 'BANNED' | 'INVALID_CREDENTIALS' | 'DB_ERROR'
 
 export function validateUserPhone(phone: string): string | null {
   const trimmed = phone.trim()
