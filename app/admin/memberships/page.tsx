@@ -5,10 +5,7 @@ import {
   Plus,
   Search,
   AlertTriangle,
-  Power,
   PowerOff,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -43,8 +40,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-
-const ITEMS_PER_PAGE = 10
+import { INITIAL_SITE_SETTINGS } from '@/lib/site-settings'
+import { AdminTablePagination } from '@/components/admin/AdminTablePagination'
+import { paginateArray } from '@/lib/admin-pagination'
 
 const membershipTypeMap: Record<string, string> = {
   monthly: '月卡',
@@ -53,6 +51,7 @@ const membershipTypeMap: Record<string, string> = {
 }
 
 const statusMap: Record<string, { label: string; className: string }> = {
+  free: { label: '免费', className: 'bg-blue-100 text-blue-800' },
   active: { label: '有效', className: 'bg-green-100 text-green-800' },
   expired: { label: '已过期', className: 'bg-gray-100 text-gray-800' },
   cancelled: { label: '已取消', className: 'bg-gray-100 text-gray-800' },
@@ -63,18 +62,18 @@ interface Membership {
   userId: string
   phone: string
   nickname: string
-  type: string
+  planType?: string | null
+  planLabel: string
   startDate: string
   expireDate: string
   status: string
-  createdAt: string
 }
 
 interface Settings {
   membership?: {
-    monthly?: { price: number; enabled: boolean }
-    quarterly?: { price: number; enabled: boolean }
-    yearly?: { price: number; enabled: boolean }
+    monthly?: { price: number; originalPrice?: number; enabled: boolean }
+    quarterly?: { price: number; originalPrice?: number; enabled: boolean }
+    yearly?: { price: number; originalPrice?: number; enabled: boolean }
   }
 }
 
@@ -93,13 +92,20 @@ function ActivateMembershipDialog({
   const [membershipType, setMembershipType] = useState('monthly')
   const [foundUser, setFoundUser] = useState<{ id: string; phone: string; nickname: string } | null>(null)
   const [searching, setSearching] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const getMembershipLabel = (type: string) => {
     const prices = settings?.membership || {}
+    const format = (plan?: { price?: number; originalPrice?: number }) => {
+      if (!plan) return ''
+      const sale = plan.price ?? 0
+      const orig = plan.originalPrice ?? sale
+      return orig > sale ? `¥${sale}（原价 ¥${orig}）` : `¥${sale}`
+    }
     switch (type) {
-      case 'monthly': return `月度 - ¥${prices.monthly?.price || 39}`
-      case 'quarterly': return `季度 - ¥${prices.quarterly?.price || 99}`
-      case 'yearly': return `年度 - ¥${prices.yearly?.price || 299}`
+      case 'monthly': return `月度 - ${format(prices.monthly) || '¥9.9'}`
+      case 'quarterly': return `季度 - ${format(prices.quarterly) || '¥99'}`
+      case 'yearly': return `年度 - ${format(prices.yearly) || '¥299'}`
       default: return type
     }
   }
@@ -147,6 +153,7 @@ function ActivateMembershipDialog({
       return
     }
 
+    setSubmitting(true)
     try {
       const res = await fetch('/api/admin/memberships', {
         method: 'POST',
@@ -155,8 +162,15 @@ function ActivateMembershipDialog({
       })
       const data = await res.json()
       if (data.success) {
-        toast.success(`用户 ${foundUser.nickname} 的${membershipTypeMap[membershipType]}已开通`)
+        const expireText = data.data?.expiresAt
+          ? new Date(data.data.expiresAt).toLocaleString('zh-CN', { hour12: false })
+          : ''
+        const orderText = data.data?.orderNo ? `，订单号 ${data.data.orderNo}` : ''
+        toast.success(
+          `已为 ${foundUser.nickname || foundUser.phone} 开通${membershipTypeMap[membershipType]}${expireText ? `，到期 ${expireText}` : ''}${orderText}`,
+        )
         setSearchPhone('')
+        setFoundUser(null)
         setMembershipType('monthly')
         onClose()
         onSuccess()
@@ -166,6 +180,8 @@ function ActivateMembershipDialog({
     } catch (error) {
       console.error('开通会员失败:', error)
       toast.error('开通失败，请重试')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -211,8 +227,10 @@ function ActivateMembershipDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>取消</Button>
-          <Button onClick={handleSubmit} disabled={!foundUser}>确认开通</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button onClick={handleSubmit} disabled={!foundUser || submitting}>
+            {submitting ? '开通中...' : '确认开通'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -223,23 +241,18 @@ export default function MembershipsPage() {
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [settings, setSettings] = useState<Settings>({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [activateDialogOpen, setActivateDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Mock数据
   const mockMemberships: Membership[] = [
-    { id: '1', userId: '1', phone: '13800138001', nickname: '张三', type: 'yearly', startDate: '2024-01-15', expireDate: '2025-01-15', status: 'active', createdAt: '2024-01-15 10:30:00' },
-    { id: '2', userId: '2', phone: '13800138002', nickname: '李四', type: 'quarterly', startDate: '2024-02-01', expireDate: '2024-05-01', status: 'active', createdAt: '2024-02-01 14:20:00' },
-    { id: '3', userId: '3', phone: '13800138003', nickname: '王五', type: 'monthly', startDate: '2024-03-01', expireDate: '2024-04-01', status: 'expired', createdAt: '2024-03-01 09:15:00' },
+    { id: '1', userId: '1', phone: '13800138001', nickname: '张三', planLabel: '年卡', startDate: '2024-01-15', expireDate: '2025-01-15', status: 'active' },
+    { id: '2', userId: '2', phone: '13800138002', nickname: '李四', planLabel: '月卡', startDate: '2024-02-01', expireDate: '2024-05-01', status: 'active' },
+    { id: '3', userId: '3', phone: '13800138003', nickname: '王五', planLabel: '—', startDate: '2024-03-01', expireDate: '2024-04-01', status: 'expired' },
   ]
   const mockSettings: Settings = {
-    membership: {
-      monthly: { price: 39, enabled: true },
-      quarterly: { price: 99, enabled: true },
-      yearly: { price: 299, enabled: true },
-    },
+    membership: INITIAL_SITE_SETTINGS.membership,
   }
 
   useEffect(() => {
@@ -262,7 +275,7 @@ export default function MembershipsPage() {
         setMemberships(mockMemberships)
       }
       if (settingsData.success) {
-        setSettings(settingsData.data)
+        setSettings({ membership: settingsData.data.membership_pricing })
       } else {
         setSettings(mockSettings)
       }
@@ -276,21 +289,17 @@ export default function MembershipsPage() {
 
   const filteredMemberships = useMemo(() => {
     return memberships.filter((m) => {
-      const matchesSearch =
+      return (
         searchQuery === '' ||
         m.phone.includes(searchQuery) ||
         m.nickname.toLowerCase().includes(searchQuery.toLowerCase())
-
-      const matchesStatus = statusFilter === 'all' || m.status === statusFilter
-
-      return matchesSearch && matchesStatus
+      )
     })
-  }, [memberships, searchQuery, statusFilter])
+  }, [memberships, searchQuery])
 
-  const totalPages = Math.ceil(filteredMemberships.length / ITEMS_PER_PAGE)
-  const paginatedMemberships = filteredMemberships.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const { items: paginatedMemberships, total, totalPages } = useMemo(
+    () => paginateArray(filteredMemberships, currentPage),
+    [filteredMemberships, currentPage],
   )
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,29 +307,26 @@ export default function MembershipsPage() {
     setCurrentPage(1)
   }
 
-  const handleStatusFilter = (value: string) => {
-    setStatusFilter(value)
-    setCurrentPage(1)
-  }
-
   const handleToggleMembership = async (membership: Membership) => {
-    const newStatus = membership.status === 'active' ? 'cancelled' : 'active'
-    const action = newStatus === 'cancelled' ? '关闭' : '开通'
+    if (membership.status !== 'active') {
+      toast.info('请使用「手动开通」为该用户开通会员')
+      return
+    }
 
     try {
       const res = await fetch('/api/admin/memberships', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: membership.id, status: newStatus }),
+        body: JSON.stringify({ id: membership.id, status: 'cancelled' }),
       })
       const data = await res.json()
       if (data.success) {
         setMemberships((prev) =>
           prev.map((m) =>
-            m.id === membership.id ? { ...m, status: newStatus } : m
+            m.id === membership.id ? { ...m, status: 'cancelled' } : m
           )
         )
-        toast.success(`用户 ${membership.nickname} 的会员已${action}`)
+        toast.success(`用户 ${membership.nickname} 的会员已关闭`)
       }
     } catch (error) {
       console.error('更新会员状态失败:', error)
@@ -352,8 +358,7 @@ export default function MembershipsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">会员列表</CardTitle>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative">
+            <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="搜索手机号/昵称"
@@ -362,18 +367,6 @@ export default function MembershipsPage() {
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="筛选状态" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="active">有效</SelectItem>
-                  <SelectItem value="expired">已过期</SelectItem>
-                  <SelectItem value="cancelled">已取消</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -408,7 +401,11 @@ export default function MembershipsPage() {
                     <TableCell className="font-medium">{membership.nickname}</TableCell>
                     <TableCell>{membership.phone}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{membershipTypeMap[membership.type]}</Badge>
+                      {membership.planLabel && membership.planLabel !== '—' ? (
+                        <Badge variant="outline">{membership.planLabel}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{membership.startDate}</TableCell>
                     <TableCell>
@@ -425,24 +422,17 @@ export default function MembershipsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleMembership(membership)}
-                        className={membership.status === 'active' ? 'text-red-600' : 'text-green-600'}
-                      >
-                        {membership.status === 'active' ? (
-                          <>
-                            <PowerOff className="h-4 w-4 mr-1" />
-                            关闭
-                          </>
-                        ) : (
-                          <>
-                            <Power className="h-4 w-4 mr-1" />
-                            开通
-                          </>
-                        )}
-                      </Button>
+                      {membership.status === 'active' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleMembership(membership)}
+                          className="text-red-600"
+                        >
+                          <PowerOff className="h-4 w-4 mr-1" />
+                          关闭
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -450,29 +440,12 @@ export default function MembershipsPage() {
             </TableBody>
           </Table>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                第 {currentPage} / {totalPages} 页
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <AdminTablePagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 

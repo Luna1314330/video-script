@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [phoneError, setPhoneError] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [confirmError, setConfirmError] = useState("")
+  const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
 
   const validatePhone = (value: string) => {
@@ -66,6 +67,7 @@ export default function RegisterPage() {
     }
     
     setLoading(true)
+    setFormError("")
     
     try {
       const res = await fetch("/api/auth/register", {
@@ -79,11 +81,15 @@ export default function RegisterPage() {
       if (res.ok) {
         alert("注册成功！")
         router.push("/login")
+      } else if (data.code === "ALREADY_REGISTERED") {
+        setFormError("该手机号已注册过，请直接登录")
+      } else if (data.code === "BANNED") {
+        setFormError("该手机号已被禁用，请联系管理员")
       } else {
-        alert(data.error || "注册失败")
+        setFormError(data.error || "注册失败，请重试")
       }
-    } catch (error) {
-      alert("注册失败，请重试")
+    } catch {
+      setFormError("注册失败，请重试")
     } finally {
       setLoading(false)
     }
@@ -144,6 +150,10 @@ export default function RegisterPage() {
             )}
           </div>
           
+          {formError && (
+            <p className="text-sm text-red-500 text-center">{formError}</p>
+          )}
+
           {/* 注册按钮 */}
           <button
             type="submit"

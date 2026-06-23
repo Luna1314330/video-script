@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { AdminTablePagination } from '@/components/admin/AdminTablePagination'
+import { paginateArray } from '@/lib/admin-pagination'
 import { Plus, Search, Eye, Ban, Unlock, X } from 'lucide-react'
 
 interface User {
@@ -28,19 +31,14 @@ export default function UsersPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newPhone, setNewPhone] = useState('')
   const [newNickname, setNewNickname] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [phoneError, setPhoneError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
-  // Mock数据（沙箱环境无法访问外网，使用Mock）
-  const mockUsers: User[] = [
-    { id: '1', phone: '13800138001', nickname: '张三', status: 'active', membershipType: 'yearly', createdAt: '2024-01-15 10:30:00' },
-    { id: '2', phone: '13800138002', nickname: '李四', status: 'active', membershipType: 'quarterly', createdAt: '2024-02-20 14:20:00' },
-    { id: '3', phone: '13800138003', nickname: '王五', status: 'banned', membershipType: 'none', createdAt: '2024-03-05 09:15:00' },
-  ]
-
-  // 从 API 获取用户列表
   useEffect(() => {
     fetchUsers()
   }, [])
@@ -51,17 +49,32 @@ export default function UsersPage() {
       const res = await fetch('/api/admin/users')
       const data = await res.json()
       if (data.success) {
-        setUsers(data.data)
+        setUsers(data.data || [])
       } else {
-        // 使用Mock数据
-        setUsers(mockUsers)
+        toast.error(data.message || '获取用户列表失败')
+        setUsers([])
       }
     } catch {
-      // 网络失败时使用Mock数据
-      setUsers(mockUsers)
+      toast.error('获取用户列表失败')
+      setUsers([])
     } finally {
       setLoading(false)
     }
+  }
+
+  const formatDate = (value: string) => {
+    if (!value) return '-'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return date.toLocaleString('zh-CN', { hour12: false })
+  }
+
+  const openAddModal = () => {
+    setPhoneError('')
+    setNewPhone('')
+    setNewNickname('')
+    setNewPassword('')
+    setShowAddModal(true)
   }
 
   const filteredUsers = useMemo(() => {
@@ -73,6 +86,11 @@ export default function UsersPage() {
       return matchesSearch
     })
   }, [users, searchQuery])
+
+  const { items: paginatedUsers, total, totalPages } = useMemo(
+    () => paginateArray(filteredUsers, currentPage),
+    [filteredUsers, currentPage],
+  )
 
   const handleAddUser = async () => {
     setPhoneError('')
@@ -88,22 +106,31 @@ export default function UsersPage() {
     }
 
     try {
+      setSubmitting(true)
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: newPhone, nickname: newNickname }),
+        body: JSON.stringify({
+          phone: newPhone,
+          nickname: newNickname,
+          password: newPassword || undefined,
+        }),
       })
       const data = await res.json()
       if (data.success) {
+        toast.success(data.message || '用户添加成功')
         await fetchUsers()
         setShowAddModal(false)
         setNewPhone('')
         setNewNickname('')
+        setNewPassword('')
       } else {
-        setPhoneError(data.error || '添加失败')
+        setPhoneError(data.message || data.error || '添加失败')
       }
     } catch {
       setPhoneError('添加失败，请重试')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -121,7 +148,10 @@ export default function UsersPage() {
       })
       const data = await res.json()
       if (data.success) {
+        toast.success(newStatus === 'banned' ? '用户已封禁' : '用户已解封')
         await fetchUsers()
+      } else {
+        toast.error(data.message || '操作失败')
       }
     } catch (error) {
       console.error('更新用户状态失败:', error)
@@ -152,7 +182,7 @@ export default function UsersPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>用户列表</CardTitle>
-            <Button onClick={() => setShowAddModal(true)}>
+            <Button onClick={openAddModal}>
               <Plus className="w-4 h-4 mr-1" />
               添加用户
             </Button>
@@ -166,7 +196,10 @@ export default function UsersPage() {
               <Input
                 placeholder="搜索手机号或昵称..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1)
+                }}
                 className="pl-10"
               />
             </div>
@@ -180,6 +213,7 @@ export default function UsersPage() {
               {searchQuery ? '未找到匹配的用户' : '暂无用户数据'}
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -192,7 +226,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user) => (
+                  {paginatedUsers.map((user) => (
                     <tr key={user.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">{maskPhone(user.phone)}</td>
                       <td className="py-3 px-4">{user.nickname || '-'}</td>
@@ -205,7 +239,7 @@ export default function UsersPage() {
                           {membershipTypeMap[user.membershipType]}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-500">{user.createdAt}</td>
+                      <td className="py-3 px-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Button 
@@ -234,6 +268,13 @@ export default function UsersPage() {
                 </tbody>
               </table>
             </div>
+            <AdminTablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={total}
+              onPageChange={setCurrentPage}
+            />
+            </>
           )}
         </CardContent>
       </Card>
@@ -273,14 +314,24 @@ export default function UsersPage() {
                   onChange={(e) => setNewNickname(e.target.value)}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">初始密码</label>
+                <Input
+                  type="password"
+                  placeholder="留空则默认 123456"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">用于用户登录，至少 6 位</p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShowAddModal(false)}>
+              <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={submitting}>
                 取消
               </Button>
-              <Button onClick={handleAddUser}>
-                确认添加
+              <Button onClick={handleAddUser} disabled={submitting}>
+                {submitting ? '添加中...' : '确认添加'}
               </Button>
             </div>
           </div>
@@ -322,7 +373,7 @@ export default function UsersPage() {
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-gray-500">注册时间</span>
-                <span>{selectedUser.createdAt}</span>
+                <span>{formatDate(selectedUser.createdAt)}</span>
               </div>
             </div>
 

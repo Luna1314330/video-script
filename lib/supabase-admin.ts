@@ -77,5 +77,27 @@ function getSupabaseClientInternal(): SupabaseClient {
   })
 }
 
-// 导出管理员客户端（绕过 RLS）
-export const supabaseAdmin: SupabaseClient = getSupabaseClientInternal()
+export function isSupabaseConfigured(): boolean {
+  loadEnv()
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  return !!(url && (anonKey || serviceRoleKey))
+}
+
+let cachedClient: SupabaseClient | null | undefined
+
+/** 懒加载 Supabase 客户端；未配置时返回 null，避免模块加载阶段抛错 */
+export function getSupabaseAdmin(): SupabaseClient | null {
+  if (cachedClient !== undefined) return cachedClient
+  if (!isSupabaseConfigured()) {
+    cachedClient = null
+    return null
+  }
+  try {
+    cachedClient = getSupabaseClientInternal()
+  } catch {
+    cachedClient = null
+  }
+  return cachedClient
+}

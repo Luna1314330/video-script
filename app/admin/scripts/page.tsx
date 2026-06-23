@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Search, Eye } from 'lucide-react'
+import { AdminTablePagination } from '@/components/admin/AdminTablePagination'
+import { paginateArray } from '@/lib/admin-pagination'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -42,6 +44,7 @@ export default function ScriptsPage() {
   const [scripts, setScripts] = useState<ScriptHistory[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
   const [selectedScript, setSelectedScript] = useState<ScriptHistory | null>(null)
 
   // Mock数据
@@ -78,8 +81,14 @@ export default function ScriptsPage() {
   }
 
   const handleSearchSubmit = () => {
+    setCurrentPage(1)
     fetchScripts()
   }
+
+  const { items: paginatedScripts, total, totalPages } = useMemo(
+    () => paginateArray(scripts, currentPage),
+    [scripts, currentPage],
+  )
 
   return (
     <div className="space-y-6">
@@ -130,7 +139,7 @@ export default function ScriptsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                scripts.map((script) => (
+                paginatedScripts.map((script) => (
                   <TableRow key={script.id}>
                     <TableCell className="font-medium">{script.phone}</TableCell>
                     <TableCell>{script.industry}</TableCell>
@@ -162,6 +171,12 @@ export default function ScriptsPage() {
               )}
             </TableBody>
           </Table>
+          <AdminTablePagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 

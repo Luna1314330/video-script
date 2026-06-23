@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -28,36 +28,75 @@ const navItems = [
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isAuthenticated, logout, admin } = useAdminStore()
+  const { isAuthenticated, logout, admin, restoreSession } = useAdminStore()
+  const [authReady, setAuthReady] = useState(false)
 
-  // Skip auth check for login page
   const isLoginPage = pathname === '/admin/login'
 
-  // 暂时禁用认证检查，方便调试
-  // useEffect(() => {
-  //   if (!isLoginPage && !isAuthenticated) {
-  //     router.push('/admin/login')
-  //   }
-  // }, [isLoginPage, isAuthenticated, router])
+  useEffect(() => {
+    if (isLoginPage) {
+      setAuthReady(true)
+      return
+    }
 
-  const handleLogout = () => {
-    logout()
+    let cancelled = false
+
+    const verify = async () => {
+      if (isAuthenticated) {
+        try {
+          const res = await fetch('/api/admin/login')
+          if (!res.ok) {
+            await logout()
+            if (!cancelled) router.replace('/admin/login')
+            return
+          }
+        } catch {
+          if (!cancelled) router.replace('/admin/login')
+          return
+        }
+        if (!cancelled) setAuthReady(true)
+        return
+      }
+
+      try {
+        const res = await fetch('/api/admin/login')
+        if (res.ok) {
+          const data = await res.json()
+          if (!cancelled && data.authenticated) {
+            restoreSession(data.username || 'admin')
+            setAuthReady(true)
+            return
+          }
+        }
+      } catch {
+        // 忽略
+      }
+
+      if (!cancelled) router.replace('/admin/login')
+    }
+
+    void verify()
+    return () => {
+      cancelled = true
+    }
+  }, [isLoginPage, isAuthenticated, logout, restoreSession, router])
+
+  const handleLogout = async () => {
+    await logout()
     window.location.href = '/admin/login'
   }
 
-  // Login page - no layout needed
   if (isLoginPage) {
     return <>{children}</>
   }
 
-  // 暂时禁用认证检查，直接显示内容
-  // if (!isAuthenticated) {
-  //   return (
-  //     <div className="flex h-screen items-center justify-center">
-  //       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-  //     </div>
-  //   )
-  // }
+  if (!authReady || !isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
 
   const isActive = (href: string) => {
     if (href === '/admin') {

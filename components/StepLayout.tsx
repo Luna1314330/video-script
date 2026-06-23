@@ -71,6 +71,16 @@ export function StepHeader({ title, description }: StepHeaderProps) {
   )
 }
 
+export function AiGenerationTip() {
+  return (
+    <div className="mb-6 rounded-lg border border-border/50 bg-muted/25 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-1">
+      <p className="font-medium text-foreground/75">💡 小提示</p>
+      <p>脚本由 AI 帮你生成，但你是最终把关人哦～</p>
+      <p>请根据实际拍摄场景调整内容，确保符合相关法规和平台要求。</p>
+    </div>
+  )
+}
+
 interface ResultCardProps {
   title: string
   children: React.ReactNode

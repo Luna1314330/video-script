@@ -1,16 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { saveAuthSession } from "@/lib/auth-client"
 
 export default function LoginPage() {
   const router = useRouter()
+  const [redirectTo, setRedirectTo] = useState("/")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [phoneError, setPhoneError] = useState("")
   const [passwordError, setPasswordError] = useState("")
+  const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setRedirectTo(params.get("redirect") || "/")
+  }, [])
 
   const validatePhone = (value: string) => {
     if (!value) {
@@ -50,6 +58,7 @@ export default function LoginPage() {
     }
     
     setLoading(true)
+    setFormError("")
     
     try {
       const res = await fetch("/api/auth/login", {
@@ -61,13 +70,19 @@ export default function LoginPage() {
       const data = await res.json()
       
       if (res.ok) {
-        localStorage.setItem("user", JSON.stringify(data.user))
-        router.push("/")
+        saveAuthSession({
+          token: data.token,
+          refreshToken: data.refresh_token,
+          user: data.user,
+        })
+        router.push(redirectTo)
+      } else if (data.code === "BANNED") {
+        setFormError("该手机号已被禁用，请联系管理员")
       } else {
-        alert(data.error || "登录失败")
+        setFormError(data.error || "登录失败，请重试")
       }
-    } catch (error) {
-      alert("登录失败，请重试")
+    } catch {
+      setFormError("登录失败，请重试")
     } finally {
       setLoading(false)
     }
@@ -112,6 +127,10 @@ export default function LoginPage() {
             )}
           </div>
           
+          {formError && (
+            <p className="text-sm text-red-500 text-center">{formError}</p>
+          )}
+
           {/* 登录按钮 */}
           <button
             type="submit"

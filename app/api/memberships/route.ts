@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { activateUserMembership } from '@/lib/activate-membership'
+import { DB, isMembershipActive } from '@/lib/db/tables'
+import {
+  ensureSiteSettingsHydrated,
+  getSiteSettings,
+  isMembershipPlanEnabled,
+  toAdminApiPayload,
+} from '@/lib/site-settings'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { getSupabaseClient } from '@/storage/database/supabase-client'
 
 // 获取当前用户的会员信息
@@ -6,66 +15,52 @@ export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: '未提供认证令牌' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: '未提供认证令牌' }, { status: 401 })
     }
 
     const token = authHeader.substring(7)
     const supabase = getSupabaseClient(token)
 
-    // 验证 token 并获取用户
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
     if (authError || !user) {
-      return NextResponse.json(
-        { error: '无效的认证令牌' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: '无效的认证令牌' }, { status: 401 })
     }
 
-    // 获取当前有效会员
-    const today = new Date().toISOString().split('T')[0]
+    const supabaseAdmin = getSupabaseAdmin()
+    if (supabaseAdmin) {
+      await ensureSiteSettingsHydrated(supabaseAdmin)
+    }
+
     const { data: membership, error: membershipError } = await supabase
-      .from('memberships')
+      .from(DB.memberships)
       .select('*')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .lte('expire_at', today)
       .maybeSingle()
 
-    // 如果没有已过期的，再查一下有没有未过期的
-    let activeMembership = null
-    if (!membership) {
-      const { data: validMembership } = await supabase
-        .from('memberships')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .gte('expire_at', today)
-        .maybeSingle()
-      activeMembership = validMembership
+    if (membershipError) {
+      console.error('获取会员信息失败:', membershipError)
     }
 
-    // 获取系统设置（会员价格配置）
-    const { data: settings } = await supabase
-      .from('system_settings')
-      .select('*')
-      .eq('id', 'membership_pricing')
-      .maybeSingle()
+    const active = membership
+      ? isMembershipActive(membership.status, membership.expires_at)
+      : false
 
     return NextResponse.json({
       success: true,
-      membership: activeMembership || membership,
-      pricing: settings?.value || null,
+      membership: membership
+        ? {
+            id: membership.id,
+            status: active ? 'active' : membership.status,
+            plan_type: membership.plan_type,
+            starts_at: membership.starts_at,
+            expires_at: membership.expires_at,
+          }
+        : { status: 'free', plan_type: null },
+      pricing: toAdminApiPayload(getSiteSettings()).membership_pricing,
     })
   } catch (error) {
     console.error('获取会员信息错误:', error)
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }
 
@@ -74,105 +69,69 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: '未提供认证令牌' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: '未提供认证令牌' }, { status: 401 })
     }
 
     const token = authHeader.substring(7)
     const supabase = getSupabaseClient(token)
 
-    // 验证 token 并获取用户
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
     if (authError || !user) {
-      return NextResponse.json(
-        { error: '无效的认证令牌' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: '无效的认证令牌' }, { status: 401 })
     }
+
+    const supabaseAdmin = getSupabaseAdmin()
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase 未配置' }, { status: 503 })
+    }
+
+    await ensureSiteSettingsHydrated(supabaseAdmin)
 
     const body = await request.json()
-    const { type } = body // monthly, quarterly, yearly
+    const { type, payment_method = 'wechat' } = body
 
-    if (!['monthly', 'quarterly', 'yearly'].includes(type)) {
-      return NextResponse.json(
-        { error: '无效的会员类型' },
-        { status: 400 }
-      )
+    if (!isMembershipPlanEnabled(type)) {
+      return NextResponse.json({ error: '该会员套餐暂未开放' }, { status: 400 })
     }
 
-    // 检查是否已有有效会员
-    const today = new Date().toISOString().split('T')[0]
-    const { data: existingMembership } = await supabase
-      .from('memberships')
+    const { data: existingMembership } = await supabaseAdmin
+      .from(DB.memberships)
       .select('*')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .gte('expire_at', today)
       .maybeSingle()
 
-    if (existingMembership) {
-      return NextResponse.json(
-        { error: '您已有有效会员，无需重复购买' },
-        { status: 400 }
-      )
+    if (existingMembership && isMembershipActive(existingMembership.status, existingMembership.expires_at)) {
+      return NextResponse.json({ error: '您已有有效会员，无需重复购买' }, { status: 400 })
     }
 
-    // 计算过期时间
-    const startDate = new Date()
-    const expireDate = new Date()
-    
-    switch (type) {
-      case 'monthly':
-        expireDate.setMonth(expireDate.getMonth() + 1)
-        break
-      case 'quarterly':
-        expireDate.setMonth(expireDate.getMonth() + 3)
-        break
-      case 'yearly':
-        expireDate.setFullYear(expireDate.getFullYear() + 1)
-        break
-    }
+    const result = await activateUserMembership(supabaseAdmin, {
+      userId: user.id,
+      type,
+      source: 'user',
+      paymentMethod: payment_method,
+    })
 
-    // 创建会员记录
-    const { data: newMembership, error: membershipError } = await supabase
-      .from('memberships')
-      .insert({
-        user_id: user.id,
-        type,
-        status: 'active',
-        start_at: startDate.toISOString().split('T')[0],
-        expire_at: expireDate.toISOString().split('T')[0],
-        auto_renew: false,
-      })
-      .select()
-      .single()
-
-    if (membershipError) {
-      console.error('创建会员失败:', membershipError)
-      return NextResponse.json(
-        { error: '开通会员失败' },
-        { status: 500 }
-      )
+    if (!result.success) {
+      return NextResponse.json({ error: result.message }, { status: result.status })
     }
 
     return NextResponse.json({
       success: true,
       membership: {
-        id: newMembership.id,
-        type: newMembership.type,
-        status: newMembership.status,
-        start_at: newMembership.start_at,
-        expire_at: newMembership.expire_at,
+        id: result.membershipId,
+        status: 'active',
+        plan_type: result.planType,
+        starts_at: result.startsAt,
+        expires_at: result.expiresAt,
+      },
+      order: {
+        id: result.orderId,
+        order_no: result.orderNo,
+        amount: result.amount,
       },
     })
   } catch (error) {
     console.error('开通会员错误:', error)
-    return NextResponse.json(
-      { error: '服务器错误' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }

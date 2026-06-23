@@ -1,10 +1,13 @@
 'use client'
 
 import { StepIndicator } from '@/components/StepIndicator'
+import { GenerationQuotaDisplay } from '@/components/GenerationQuotaDisplay'
+import { MembershipLink } from '@/components/MembershipLink'
 import { StepContentStrategy } from '@/components/steps/StepContentStrategy'
 import { StepIndustryProduct } from '@/components/steps/StepIndustryProduct'
 import { StepScriptGeneration } from '@/components/steps/StepScriptGeneration'
 import { useAppStore } from '@/lib/store'
+import { isLoggedIn as checkLoggedIn } from '@/lib/auth-client'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -15,12 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
-    // 检查 localStorage 中的 Supabase session
-    const checkAuth = () => {
-      const sbSession = localStorage.getItem('sb-access-token')
-      setIsLoggedIn(!!sbSession)
-    }
-    checkAuth()
+    setIsLoggedIn(checkLoggedIn())
   }, [])
 
   return (
@@ -41,10 +39,9 @@ export default function Home() {
                 短视频内容策略 · 脚本生成
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <Link href="/membership" className="text-sm text-amber-600 font-medium hover:text-amber-700">
-                开通会员
-              </Link>
+            <div className="flex items-center gap-3 sm:gap-4">
+              {mounted && isLoggedIn && <GenerationQuotaDisplay variant="compact" />}
+              <MembershipLink className="text-sm text-amber-600 font-medium hover:text-amber-700" />
               {mounted && isLoggedIn ? (
                 <Link href="/profile" className="text-sm text-muted-foreground hover:text-foreground">
                   个人中心
@@ -73,8 +70,17 @@ export default function Home() {
           {currentStep === 3 && <StepScriptGeneration />}
         </div>
 
-        <footer className="mt-20 pt-8 border-t border-border/40 text-center">
+        <footer className="mt-20 pt-8 border-t border-border/40 text-center space-y-2">
           <p className="text-xs text-muted-foreground">脚本工坊 · 从策略到脚本，三步完成</p>
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/disclaimer" className="hover:text-foreground underline-offset-2 hover:underline">
+              免责声明
+            </Link>
+            <span className="text-border">|</span>
+            <Link href="/privacy" className="hover:text-foreground underline-offset-2 hover:underline">
+              隐私政策
+            </Link>
+          </p>
         </footer>
       </div>
     </main>

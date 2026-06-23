@@ -1,58 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { mockAdminSettingsResponse } from '@/lib/admin-api-mock'
+import {
+  ensureSiteSettingsHydrated,
+  getSiteSettings,
+  persistSiteSettingsToDb,
+  toAdminApiPayload,
+  updateSiteSettingsFromAdmin,
+} from '@/lib/site-settings'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdminApi } from '@/lib/admin-auth-server'
 
-// GET - 获取所有系统设置
-export async function GET() {
+// GET - 从 system_settings 表读取配置
+export async function GET(request: NextRequest) {
+  const denied = requireAdminApi(request)
+  if (denied) return denied
+
+  const supabaseAdmin = getSupabaseAdmin()
+  if (!supabaseAdmin) {
+    return NextResponse.json(mockAdminSettingsResponse())
+  }
+
   try {
-    const { data: settings, error } = await supabaseAdmin
-      .from('system_settings')
-      .select('*')
-      .order('created_at', { ascending: true })
+    const result = await ensureSiteSettingsHydrated(supabaseAdmin)
 
-    if (error) {
-      console.error('获取系统设置失败:', error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-    }
-
-    // 转换为 key-value 格式
-    const result: Record<string, any> = {}
-    ;(settings || []).forEach((s: any) => {
-      result[s.id] = s.value
+    return NextResponse.json({
+      success: true,
+      data: toAdminApiPayload(result.settings),
+      meta: {
+        persisted: result.persisted,
+        tableReady: result.tableReady,
+        note: result.tableReady
+          ? '配置已持久化到 system_settings 表'
+          : '请先在 Supabase SQL Editor 执行 storage/database/system_settings.sql',
+      },
     })
-
-    return NextResponse.json({ success: true, data: result })
-  } catch (error: any) {
-    console.error('获取系统设置异常:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('读取系统设置失败:', error)
+    return NextResponse.json({
+      success: true,
+      data: toAdminApiPayload(getSiteSettings()),
+      meta: {
+        persisted: false,
+        tableReady: false,
+        note: '读取数据库失败，已回退到默认配置',
+      },
+    })
   }
 }
 
-// PUT - 更新系统设置
+// PUT - 保存到 system_settings 表
 export async function PUT(request: NextRequest) {
+  const denied = requireAdminApi(request)
+  if (denied) return denied
+
+  const supabaseAdmin = getSupabaseAdmin()
+  if (!supabaseAdmin) {
+    return NextResponse.json({ success: false, error: 'Supabase 未配置' }, { status: 503 })
+  }
+
   try {
     const body = await request.json()
+    const settings = updateSiteSettingsFromAdmin(body)
 
-    // 遍历更新每个设置
-    for (const [key, value] of Object.entries(body)) {
-      const { error } = await supabaseAdmin
-        .from('system_settings')
-        .upsert({ 
-          id: key, 
-          value,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id',
-        })
+    await persistSiteSettingsToDb(supabaseAdmin, settings)
 
-      if (error) {
-        console.error(`更新设置 ${key} 失败:`, error)
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-      }
+    return NextResponse.json({
+      success: true,
+      message: '设置已保存',
+      data: toAdminApiPayload(getSiteSettings()),
+      meta: {
+        persisted: true,
+        tableReady: true,
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '保存失败'
+
+    if (message.includes('Could not find the table')) {
+      return NextResponse.json({
+        success: false,
+        error: 'system_settings 表不存在，请先在 Supabase 执行 storage/database/system_settings.sql',
+      }, { status: 503 })
     }
 
-    return NextResponse.json({ success: true, message: '设置保存成功' })
-  } catch (error: any) {
-    console.error('保存设置异常:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('保存系统设置失败:', error)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

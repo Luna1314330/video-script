@@ -208,7 +208,7 @@ export const STEP_LABELS = ['行业与产品', '内容策略', '生成脚本'] a
 
 export const TOTAL_STEPS = STEP_LABELS.length
 
-/** 本机历史记录（localStorage） */
+/** 云端脚本历史记录 */
 export interface GenerationHistoryEntry {
   id: string
   createdAt: string

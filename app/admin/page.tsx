@@ -16,6 +16,20 @@ interface Stats {
   totalScripts: number
 }
 
+const mockStats: Stats = {
+  totalUsers: 3,
+  totalMemberships: 3,
+  totalRevenue: 437,
+  totalScripts: 4,
+}
+
+async function fetchJsonSafe<T>(url: string): Promise<T | null> {
+  const res = await fetch(url)
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) return null
+  return res.json() as Promise<T>
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -32,33 +46,35 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true)
-      const [usersRes, membershipsRes, ordersRes, scriptsRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch('/api/admin/memberships'),
-        fetch('/api/admin/orders'),
-        fetch('/api/admin/scripts'),
-      ])
-
       const [usersData, membershipsData, ordersData, scriptsData] = await Promise.all([
-        usersRes.json(),
-        membershipsRes.json(),
-        ordersRes.json(),
-        scriptsRes.json(),
+        fetchJsonSafe<{ data?: unknown[] }>('/api/admin/users'),
+        fetchJsonSafe<{ data?: Array<{ status?: string }> }>('/api/admin/memberships'),
+        fetchJsonSafe<{ data?: Array<{ status?: string; amount?: number; isManualOrder?: boolean }> }>('/api/admin/orders'),
+        fetchJsonSafe<{ data?: unknown[] }>('/api/admin/scripts'),
       ])
 
-      // 计算总收入（已支付订单）
+      if (!usersData || !membershipsData || !ordersData || !scriptsData) {
+        setStats(mockStats)
+        return
+      }
+
       const totalRevenue = (ordersData.data || [])
-        .filter((o: any) => o.status === 'paid')
-        .reduce((sum: number, o: any) => sum + (o.amount || 0), 0)
+        .filter((o) => o.status === 'paid' && !o.isManualOrder)
+        .reduce((sum, o) => sum + (o.amount || 0), 0)
+
+      const activeMemberships = (membershipsData.data || []).filter(
+        (m) => m.status === 'active',
+      ).length
 
       setStats({
         totalUsers: usersData.data?.length || 0,
-        totalMemberships: membershipsData.data?.length || 0,
+        totalMemberships: activeMemberships,
         totalRevenue,
         totalScripts: scriptsData.data?.length || 0,
       })
     } catch (error) {
       console.error('获取统计数据失败:', error)
+      setStats(mockStats)
     } finally {
       setLoading(false)
     }
@@ -91,7 +107,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              会员总数
+              有效会员
             </CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

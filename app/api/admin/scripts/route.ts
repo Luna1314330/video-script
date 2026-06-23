@@ -1,28 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { mockAdminScriptsResponse } from '@/lib/admin-api-mock'
+import {
+  DB,
+  mapAdminScript,
+  USER_PROFILE_EMBED,
+} from '@/lib/db/tables'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdminApi } from '@/lib/admin-auth-server'
 
 // GET - 获取所有脚本历史
 export async function GET(request: NextRequest) {
+  const denied = requireAdminApi(request)
+  if (denied) return denied
+
+  const supabaseAdmin = getSupabaseAdmin()
+  if (!supabaseAdmin) {
+    return NextResponse.json(mockAdminScriptsResponse())
+  }
+
   try {
     const searchParams = request.nextUrl.searchParams
     const keyword = searchParams.get('keyword') || ''
 
     let query = supabaseAdmin
-      .from('script_history')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          phone,
-          nickname
-        )
-      `)
+      .from(DB.scriptHistory)
+      .select(`*, ${USER_PROFILE_EMBED}`)
       .order('created_at', { ascending: false })
 
-    // 如果有关键词，模糊搜索
     if (keyword) {
       query = query.or(
-        `product_name.ilike.%${keyword}%,industry.ilike.%${keyword}%,topic.ilike.%${keyword}%,profiles.phone.ilike.%${keyword}%`
+        `product_name.ilike.%${keyword}%,industry.ilike.%${keyword}%,topic.ilike.%${keyword}%`,
       )
     }
 
@@ -33,28 +40,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    // 转换数据格式，脱敏手机号
-    const result = (scripts || []).map((s: any) => {
-      const phone = s.profiles?.phone || ''
-      const maskedPhone = phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
-      
-      return {
-        id: s.id,
-        userId: s.user_id,
-        phone: maskedPhone,
-        industry: s.industry,
-        productName: s.product_name,
-        productDesc: s.product_desc,
-        shootScene: s.shoot_scene,
-        topic: s.topic,
-        generatedScript: s.generated_script,
-        createdAt: s.created_at,
-      }
-    })
-
+    const result = (scripts || []).map(mapAdminScript)
     return NextResponse.json({ success: true, data: result })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : '服务器错误'
     console.error('获取脚本历史异常:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

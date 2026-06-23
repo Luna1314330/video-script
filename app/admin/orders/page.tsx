@@ -3,14 +3,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
   Search,
-  ChevronLeft,
-  ChevronRight,
   RotateCcw,
 } from 'lucide-react'
+import { AdminTablePagination } from '@/components/admin/AdminTablePagination'
+import { paginateArray } from '@/lib/admin-pagination'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardContent,
@@ -25,27 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-
-const ITEMS_PER_PAGE = 10
-
-const membershipTypeMap: Record<string, string> = {
-  monthly: '月卡',
-  quarterly: '季卡',
-  yearly: '年卡',
-}
 
 const statusMap: Record<string, { label: string; className: string }> = {
   pending: { label: '待支付', className: 'bg-yellow-100 text-yellow-800' },
   paid: { label: '已支付', className: 'bg-green-100 text-green-800' },
+  failed: { label: '支付失败', className: 'bg-red-100 text-red-800' },
   refunded: { label: '已退款', className: 'bg-red-100 text-red-800' },
-  cancelled: { label: '已取消', className: 'bg-gray-100 text-gray-800' },
 }
 
 interface Order {
@@ -54,25 +38,25 @@ interface Order {
   userId: string
   phone: string
   nickname: string
-  type: string
   amount: number
   paymentMethod: string
+  isManualOrder?: boolean
   status: string
+  paidAt: string
   createdAt: string
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
   // Mock数据
   const mockOrders: Order[] = [
-    { id: '1', orderNo: 'ORD20240115001', userId: '1', phone: '13800138001', nickname: '张三', type: 'yearly', amount: 299, paymentMethod: '微信支付', status: 'paid' },
-    { id: '2', orderNo: 'ORD20240120001', userId: '2', phone: '13800138002', nickname: '李四', type: 'quarterly', amount: 99, paymentMethod: '支付宝', status: 'paid' },
-    { id: '3', orderNo: 'ORD20240125001', userId: '3', phone: '13800138003', nickname: '王五', type: 'monthly', amount: 39, paymentMethod: '微信支付', status: 'refunded' },
+    { id: '1', orderNo: 'ORD20240115001', userId: '1', phone: '13800138001', nickname: '张三', amount: 299, paymentMethod: '微信支付', status: 'paid', paidAt: '2024-01-15 10:36:00', createdAt: '2024-01-15 10:35:00' },
+    { id: '2', orderNo: 'ORD20240120001', userId: '2', phone: '13800138002', nickname: '李四', amount: 99, paymentMethod: '支付宝', status: 'paid', paidAt: '2024-01-20 14:21:00', createdAt: '2024-01-20 14:20:00' },
+    { id: '3', orderNo: 'ORD20240125001', userId: '3', phone: '13800138003', nickname: '王五', amount: 39, paymentMethod: '微信支付', status: 'refunded', paidAt: '2024-01-25 09:16:00', createdAt: '2024-01-25 09:15:00' },
   ]
 
   useEffect(() => {
@@ -98,30 +82,21 @@ export default function OrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
-      const matchesSearch =
+      return (
         searchQuery === '' ||
         o.phone.includes(searchQuery) ||
         o.orderNo.toLowerCase().includes(searchQuery.toLowerCase())
-
-      const matchesStatus = statusFilter === 'all' || o.status === statusFilter
-
-      return matchesSearch && matchesStatus
+      )
     })
-  }, [orders, searchQuery, statusFilter])
+  }, [orders, searchQuery])
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  const { items: paginatedOrders, total, totalPages } = useMemo(
+    () => paginateArray(filteredOrders, currentPage),
+    [filteredOrders, currentPage],
   )
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    setCurrentPage(1)
-  }
-
-  const handleStatusFilter = (value: string) => {
-    setStatusFilter(value)
     setCurrentPage(1)
   }
 
@@ -158,8 +133,7 @@ export default function OrdersPage() {
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">订单列表</CardTitle>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative">
+            <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="搜索订单号/手机号"
@@ -168,19 +142,6 @@ export default function OrdersPage() {
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="筛选状态" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="pending">待支付</SelectItem>
-                  <SelectItem value="paid">已支付</SelectItem>
-                  <SelectItem value="refunded">已退款</SelectItem>
-                  <SelectItem value="cancelled">已取消</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -190,11 +151,11 @@ export default function OrdersPage() {
                 <TableHead>订单号</TableHead>
                 <TableHead>用户</TableHead>
                 <TableHead>手机号</TableHead>
-                <TableHead>套餐</TableHead>
                 <TableHead>金额</TableHead>
                 <TableHead>支付方式</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>时间</TableHead>
+                <TableHead>支付时间</TableHead>
+                <TableHead>创建时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -217,14 +178,9 @@ export default function OrdersPage() {
                     <TableCell className="font-mono text-sm">{order.orderNo}</TableCell>
                     <TableCell>{order.nickname || '-'}</TableCell>
                     <TableCell>{order.phone || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {membershipTypeMap[order.type] || order.type}
-                      </Badge>
-                    </TableCell>
                     <TableCell>¥{order.amount}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {order.paymentMethod === 'wechat' ? '微信' : order.paymentMethod === 'alipay' ? '支付宝' : '-'}
+                      {order.paymentMethod || '-'}
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${statusMap[order.status]?.className || 'bg-gray-100 text-gray-800'}`}>
@@ -232,10 +188,13 @@ export default function OrdersPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
+                      {order.paidAt}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
                       {order.createdAt}
                     </TableCell>
                     <TableCell className="text-right">
-                      {order.status === 'paid' && (
+                      {order.status === 'paid' && !order.isManualOrder && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -253,29 +212,12 @@ export default function OrdersPage() {
             </TableBody>
           </Table>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                第 {currentPage} / {totalPages} 页
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <AdminTablePagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
     </div>

@@ -1,13 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GenerationErrorPanel } from '@/components/GenerationErrorPanel'
+import { MembershipLink } from '@/components/MembershipLink'
 import { StrategyProgress } from '@/components/StrategyProgress'
 import { StrategyResults } from '@/components/StrategyResults'
-import { StepHeader, StepNav } from '@/components/StepLayout'
+import { StepHeader, StepNav, AiGenerationTip } from '@/components/StepLayout'
 import { isStrategyStale } from '@/lib/basic-input'
+import { isLoggedIn } from '@/lib/auth-client'
+import {
+  getQuotaExhaustedMessage,
+  useGenerationQuota,
+} from '@/lib/generation/use-generation-quota'
 import { pollWorkflowApi } from '@/lib/workflow/poll-api'
 import { useAppStore } from '@/lib/store'
 import { STRATEGY_PROGRESS_PHASES, type ContentStrategyResult } from '@/lib/types'
@@ -20,6 +27,9 @@ const autoStrategyGenerationLock = {
 }
 
 export function StepContentStrategy() {
+  const router = useRouter()
+  const loggedIn = isLoggedIn()
+  const { quota, loading: quotaLoading, noQuotaLeft } = useGenerationQuota()
   const {
     basicInput,
     strategySourceInput,
@@ -139,6 +149,8 @@ export function StepContentStrategy() {
         description="基于行业与产品，生成用户画像、内容地图与选题，选择 1 个进入脚本创作。"
       />
 
+      <AiGenerationTip />
+
       {showProgress && (
         <StrategyProgress currentPhase={strategyProgressPhase} />
       )}
@@ -168,14 +180,32 @@ export function StepContentStrategy() {
         </div>
       )}
 
+      {loggedIn && noQuotaLeft && quota && !loading && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4">
+          {getQuotaExhaustedMessage(quota)}{' '}
+          <MembershipLink underline className="text-amber-700" />
+          {!quota.isMember && ' 可获得更多额度'}
+        </p>
+      )}
+
       <StepNav
         onBack={prevStep}
         onNext={() => {
+          if (!isLoggedIn()) {
+            router.push('/login?redirect=/')
+            return
+          }
+          if (noQuotaLeft) return
           setScript(null)
           setScriptProgressPhase(0)
           nextStep()
         }}
-        nextDisabled={!selectedTopic || loading || stale}
+        nextDisabled={
+          !selectedTopic ||
+          loading ||
+          stale ||
+          (loggedIn && (quotaLoading || (quota !== null && noQuotaLeft)))
+        }
         nextLabel="下一步：生成脚本"
       />
     </div>

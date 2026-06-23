@@ -1,57 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  AUTH_MESSAGES,
+  findUserProfileByPhone,
+  mapAuthErrorMessage,
+  validateUserPassword,
+  validateUserPhone,
+} from '@/lib/auth-users'
+import { DB, normalizePhone, phoneToEmail } from '@/lib/db/tables'
+import { getSupabaseAuthClient } from '@/lib/supabase-auth'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
-// Mock 用户数据（实际项目中从数据库读取）
-const mockUsers: Array<{
-  id: string
-  phone: string
-  password: string
-  created_at: string
-}> = [
-  {
-    id: '1',
-    phone: '13800138001',
-    password: '123456', // 演示账号
-    created_at: new Date().toISOString(),
-  },
-]
-
-// 生成简单 token（实际项目使用 JWT）
-function generateToken(userId: string): string {
-  return Buffer.from(JSON.stringify({ userId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 })).toString('base64')
-}
-
-// 登录
 export async function POST(request: NextRequest) {
   try {
     const { phone, password } = await request.json()
+    const trimmedPhone = (phone ?? '').trim()
 
-    if (!phone || !password) {
-      return NextResponse.json({ error: '请填写手机号和密码' }, { status: 400 })
+    const phoneError = validateUserPhone(trimmedPhone)
+    if (phoneError) {
+      return NextResponse.json({ error: phoneError }, { status: 400 })
     }
 
-    // 查找用户
-    const user = mockUsers.find((u) => u.phone === phone)
-    if (!user) {
-      return NextResponse.json({ error: '手机号或密码错误' }, { status: 401 })
+    const passwordError = validateUserPassword(password ?? '')
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 })
     }
 
-    // 验证密码
-    if (user.password !== password) {
-      return NextResponse.json({ error: '手机号或密码错误' }, { status: 401 })
+    const supabaseAdmin = getSupabaseAdmin()
+    if (supabaseAdmin) {
+      const profile = await findUserProfileByPhone(supabaseAdmin, trimmedPhone)
+      if (profile?.is_active === false) {
+        return NextResponse.json(
+          { error: AUTH_MESSAGES.banned, code: 'BANNED' },
+          { status: 403 },
+        )
+      }
     }
 
-    // 生成 token
-    const token = generateToken(user.id)
+    const supabaseAuth = getSupabaseAuthClient()
+    if (!supabaseAuth) {
+      return NextResponse.json({ error: 'Supabase 未配置，无法登录' }, { status: 503 })
+    }
+
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({
+      email: phoneToEmail(trimmedPhone),
+      password,
+    })
+
+    if (error || !data.session || !data.user) {
+      const mapped = mapAuthErrorMessage(error)
+      return NextResponse.json(
+        { error: mapped.message, code: mapped.code },
+        { status: mapped.status },
+      )
+    }
+
+    let nickname = data.user.user_metadata?.nickname as string | undefined
+    let displayPhone = normalizePhone(trimmedPhone)
+
+    if (supabaseAdmin) {
+      const { data: profile } = await supabaseAdmin
+        .from(DB.userProfiles)
+        .select('phone, nickname, is_active')
+        .eq('id', data.user.id)
+        .maybeSingle()
+
+      if (profile?.is_active === false) {
+        await supabaseAuth.auth.signOut()
+        return NextResponse.json(
+          { error: AUTH_MESSAGES.banned, code: 'BANNED' },
+          { status: 403 },
+        )
+      }
+
+      if (profile) {
+        nickname = profile.nickname || nickname
+        displayPhone = normalizePhone(profile.phone)
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      token,
+      token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
       user: {
-        id: user.id,
-        phone: user.phone,
+        id: data.user.id,
+        phone: displayPhone,
+        nickname: nickname || `用户${displayPhone.slice(-4)}`,
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('登录异常:', error)
     return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }
