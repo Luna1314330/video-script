@@ -33,14 +33,11 @@ type ActivateMembershipInput = {
   paymentMethod?: 'wechat' | 'alipay' | 'manual'
 }
 
-type ActivateMembershipSuccess = {
+export type MembershipActivationResult = {
   success: true
   membershipId: string
-  orderId: string
-  orderNo: string
   startsAt: string
   expiresAt: string
-  amount: number
   planType: MembershipPlanType
 }
 
@@ -50,16 +47,22 @@ type ActivateMembershipFailure = {
   status: number
 }
 
+type ActivateMembershipSuccess = MembershipActivationResult & {
+  orderId: string
+  orderNo: string
+  amount: number
+}
+
 function toMysqlDatetime(date: Date): string {
   return date.toISOString().slice(0, 19).replace('T', ' ')
 }
 
-export async function activateUserMembership(
+/** 仅更新会员状态，不创建订单（支付回调 / 履约时使用） */
+export async function applyMembershipPlan(
   db: AppDb,
-  input: ActivateMembershipInput,
-): Promise<ActivateMembershipSuccess | ActivateMembershipFailure> {
+  input: { userId: string; type: MembershipPlanType | string },
+): Promise<MembershipActivationResult | ActivateMembershipFailure> {
   const { userId, type } = input
-  const source = input.source ?? 'user'
 
   if (!userId || !type) {
     return { success: false, message: '缺少必要参数', status: 400 }
@@ -137,11 +140,42 @@ export async function activateUserMembership(
     })
   }
 
+  return {
+    success: true,
+    membershipId,
+    startsAt: membershipPayload.startsAt,
+    expiresAt: expiresAtStr,
+    planType,
+  }
+}
+
+/** 管理员手动开通：立即创建已支付订单并激活会员 */
+export async function activateUserMembership(
+  db: AppDb,
+  input: ActivateMembershipInput,
+): Promise<ActivateMembershipSuccess | ActivateMembershipFailure> {
+  const { userId, type } = input
+  const source = input.source ?? 'user'
+
+  const activation = await applyMembershipPlan(db, { userId, type })
+  if (!activation.success) {
+    return activation
+  }
+
   const amount = source === 'admin' ? 0 : getMembershipPrice(type)
   const paymentMethod =
     input.paymentMethod ?? (source === 'admin' ? 'manual' : 'wechat')
   const orderNo = source === 'admin' ? `MAN${generateOrderNo()}` : generateOrderNo()
   const orderId = newId()
+  const startsAt = activation.startsAt
+
+  const existingRows = await db
+    .select()
+    .from(memberships)
+    .where(eq(memberships.userId, userId))
+    .limit(1)
+
+  const existing = existingRows[0]
 
   try {
     await db.insert(orders).values({
@@ -149,6 +183,7 @@ export async function activateUserMembership(
       userId,
       orderNo,
       amount: String(amount),
+      planType: activation.planType,
       paymentMethod,
       status: 'paid',
       paidAt: startsAt,
@@ -167,7 +202,7 @@ export async function activateUserMembership(
         })
         .where(eq(memberships.id, existing.id))
     } else {
-      await db.delete(memberships).where(eq(memberships.id, membershipId))
+      await db.delete(memberships).where(eq(memberships.id, activation.membershipId))
     }
     return {
       success: false,
@@ -178,12 +213,12 @@ export async function activateUserMembership(
 
   return {
     success: true,
-    membershipId,
+    membershipId: activation.membershipId,
     orderId,
     orderNo,
-    startsAt: membershipPayload.startsAt,
-    expiresAt: expiresAtStr,
+    startsAt: activation.startsAt,
+    expiresAt: activation.expiresAt,
     amount,
-    planType,
+    planType: activation.planType,
   }
 }

@@ -1,116 +1,45 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { getAccessToken, getAuthHeaders, isLoggedIn } from '@/lib/auth-client'
-import {
-  fetchCurrentUser,
-  getMembershipActionLabel,
-  getMembershipPurchaseLabel,
-  isActiveMembership,
-} from '@/lib/profile/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { isLoggedIn } from '@/lib/auth-client'
 
-interface MembershipPlan {
-  id: string
-  name: string
-  price: number
-  originalPrice: number
-  features: string[]
-  recommended?: boolean
-}
-
-function formatPrice(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
+type PublicSiteConfig = {
+  membershipPurchaseEnabled: boolean
+  freeDailyGenerations: number
 }
 
 export default function MembershipPage() {
   const router = useRouter()
-  const [authReady, setAuthReady] = useState(false)
-  const [plans, setPlans] = useState<MembershipPlan[]>([])
+  const [config, setConfig] = useState<PublicSiteConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState<string | null>(null)
-  const [isActiveMember, setIsActiveMember] = useState(false)
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.replace('/login?redirect=/membership')
-      return
-    }
-    setAuthReady(true)
-  }, [router])
-
-  useEffect(() => {
-    if (!authReady) return
-
-    const loadUser = async () => {
+    const load = async () => {
       try {
-        const user = await fetchCurrentUser()
-        setIsActiveMember(isActiveMembership(user.membership))
-      } catch {
-        setIsActiveMember(false)
-      }
-    }
-
-    void loadUser()
-  }, [authReady])
-
-  useEffect(() => {
-    if (!authReady) return
-
-    const loadPlans = async () => {
-      try {
-        const res = await fetch('/api/memberships/plans')
+        const res = await fetch('/api/site/public')
         const data = await res.json()
-        if (data.success && Array.isArray(data.data)) {
-          setPlans(data.data)
+        if (data.success) {
+          if (data.membershipPurchaseEnabled) {
+            router.replace('/membership/purchase')
+            return
+          }
+          setConfig({
+            membershipPurchaseEnabled: false,
+            freeDailyGenerations: Number(data.freeDailyGenerations) || 1,
+          })
         }
       } catch {
-        setPlans([])
+        setConfig({ membershipPurchaseEnabled: false, freeDailyGenerations: 1 })
       } finally {
         setLoading(false)
       }
     }
-    void loadPlans()
-  }, [authReady])
+    void load()
+  }, [router])
 
-  const handlePurchase = async (planId: string) => {
-    if (!getAccessToken()) {
-      router.replace('/login?redirect=/membership')
-      return
-    }
-
-    setPurchasing(planId)
-
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          plan_id: planId,
-          payment_method: 'wechat',
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        alert(isActiveMember ? '会员续费成功！' : '会员开通成功！')
-        router.push('/profile')
-      } else {
-        alert(data.error || '开通失败，请重试')
-      }
-    } catch {
-      alert('网络错误，请重试')
-    } finally {
-      setPurchasing(null)
-    }
-  }
-
-  if (!authReady) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">加载中...</p>
@@ -123,85 +52,42 @@ export default function MembershipPage() {
       <header className="bg-white shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-gray-900">脚本工坊</Link>
-          <Link href="/profile" className="text-sm text-blue-600 hover:text-blue-800">
-            个人中心
+          <Link href="/" className="text-sm text-blue-600 hover:text-blue-800">
+            返回首页
           </Link>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            {getMembershipActionLabel(isActiveMember)}
-          </h2>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">加载中...</div>
-        ) : plans.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">暂无可用的会员套餐</p>
-          </div>
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">免费体验中</h1>
+        <p className="text-gray-600 mb-6 leading-relaxed">
+          当前为推广期，暂不开放在线购买会员。
+          <br />
+          注册登录后，每日可免费生成脚本 {config?.freeDailyGenerations ?? 1} 次。
+        </p>
+        {isLoggedIn() ? (
+          <Link
+            href="/"
+            className="inline-block bg-blue-500 text-white px-6 py-2.5 rounded-lg hover:bg-blue-600"
+          >
+            去生成脚本
+          </Link>
         ) : (
-          <div className="flex justify-center">
-            <div className="w-full max-w-sm">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`bg-white rounded-xl shadow-sm border-2 ${
-                    plan.recommended ? 'border-blue-500 relative' : 'border-gray-100'
-                  }`}
-                >
-                  {plan.recommended && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full">
-                        推荐
-                      </span>
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{plan.name}</h3>
-                    <div className="mb-4">
-                      <span className="text-3xl font-bold text-gray-900">¥{formatPrice(plan.price)}</span>
-                      {plan.originalPrice > plan.price && (
-                        <span className="text-gray-400 line-through ml-2">
-                          ¥{formatPrice(plan.originalPrice)}
-                        </span>
-                      )}
-                    </div>
-                    <ul className="space-y-2 mb-6">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="text-sm text-gray-600 flex items-center">
-                          <svg className="w-4 h-4 text-green-500 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      onClick={() => void handlePurchase(plan.id)}
-                      disabled={purchasing !== null}
-                      className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                        plan.recommended
-                          ? 'bg-blue-500 text-white hover:bg-blue-600'
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {purchasing === plan.id ? '处理中...' : getMembershipPurchaseLabel(isActiveMember)}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/register"
+              className="bg-blue-500 text-white px-6 py-2.5 rounded-lg hover:bg-blue-600"
+            >
+              免费注册
+            </Link>
+            <Link
+              href="/login?redirect=/"
+              className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50"
+            >
+              登录
+            </Link>
           </div>
         )}
-
-        <div className="text-center mt-10">
-          <p className="text-sm text-gray-500">
-            遇到问题？联系客服 <span className="text-blue-600">support@example.com</span>
-          </p>
-        </div>
       </div>
     </div>
   )

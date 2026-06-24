@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { clearAuthSession, isAuthExpiredMessage, isLoggedIn } from '@/lib/auth-client'
 import { fetchScriptHistory, formatHistoryTime, SCRIPT_HISTORY_PAGE_SIZE } from '@/lib/history/client'
+import { fetchUserOrders } from '@/lib/orders/client'
 import {
   changePassword,
   fetchCurrentUser,
@@ -21,7 +22,7 @@ import type { GenerationHistoryEntry } from '@/lib/types'
 const baseMenuItems = [
   { key: "info", label: "用户信息" },
   { key: "scripts", label: "历史脚本" },
-  { key: "orders", label: "订单信息" },
+  { key: "orders", label: "订单信息", purchaseOnly: true },
   { key: "support", label: "专属客服", memberOnly: true },
   { key: "password", label: "修改密码" },
 ] as const
@@ -30,6 +31,31 @@ export default function ProfileClient() {
   const [activeMenu, setActiveMenu] = useState<string>("info")
   const [isActiveMember, setIsActiveMember] = useState(false)
   const [membershipLoaded, setMembershipLoaded] = useState(false)
+  const [purchaseEnabled, setPurchaseEnabled] = useState(false)
+  const [siteConfigLoaded, setSiteConfigLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSiteConfig = async () => {
+      try {
+        const res = await fetch('/api/site/public')
+        const data = await res.json()
+        if (!cancelled && data.success) {
+          setPurchaseEnabled(Boolean(data.membershipPurchaseEnabled))
+        }
+      } catch {
+        if (!cancelled) setPurchaseEnabled(false)
+      } finally {
+        if (!cancelled) setSiteConfigLoaded(true)
+      }
+    }
+
+    void loadSiteConfig()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -54,15 +80,20 @@ export default function ProfileClient() {
   }, [])
 
   useEffect(() => {
-    if (!membershipLoaded) return
+    if (!membershipLoaded || !siteConfigLoaded) return
     if (activeMenu === 'support' && !isActiveMember) {
       setActiveMenu('info')
     }
-  }, [membershipLoaded, isActiveMember, activeMenu])
+    if (activeMenu === 'orders' && !purchaseEnabled) {
+      setActiveMenu('info')
+    }
+  }, [membershipLoaded, siteConfigLoaded, isActiveMember, purchaseEnabled, activeMenu])
 
-  const menuItems = baseMenuItems.filter(
-    (item) => !('memberOnly' in item && item.memberOnly) || isActiveMember,
-  )
+  const menuItems = baseMenuItems.filter((item) => {
+    if ('memberOnly' in item && item.memberOnly) return isActiveMember
+    if ('purchaseOnly' in item && item.purchaseOnly) return purchaseEnabled
+    return true
+  })
 
   const handleLogout = async () => {
     try {
@@ -528,10 +559,59 @@ function ScriptHistory() {
 }
 
 function OrderCenter() {
-  const orders = [
-    { id: "1", type: "月度会员", amount: 29, status: "completed", createdAt: "2024-03-15 10:00" },
-    { id: "2", type: "月度会员", amount: 29, status: "pending", createdAt: "2024-02-15 10:00" },
-  ]
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof fetchUserOrders>>['items']>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await fetchUserOrders({ page, pageSize: 10 })
+        if (!cancelled) {
+          setOrders(result.items)
+          setTotal(result.pagination.total)
+          setTotalPages(result.pagination.totalPages)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : '加载失败')
+          setOrders([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [page])
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">订单信息</h2>
+        <div className="text-center text-gray-500 py-8">加载中...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">订单信息</h2>
+        <div className="text-center text-red-500 py-8">{error}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -542,18 +622,62 @@ function OrderCenter() {
         <div className="space-y-3">
           {orders.map((order) => (
             <div key={order.id} className="border rounded-lg p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-sm text-gray-900">{order.type}</span>
-                  <span className="ml-4 text-sm text-gray-600">¥{order.amount}</span>
+              <div className="flex justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-900">{order.title}</p>
+                  <p className="mt-1 text-xs text-gray-500 truncate">订单号：{order.orderNo}</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    ¥{order.amount.toFixed(2)}
+                    <span className="mx-2 text-gray-300">|</span>
+                    {order.paymentLabel}
+                  </p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded ${order.status === "completed" ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"}`}>
-                  {order.status === "completed" ? "已完成" : "待处理"}
+                <span
+                  className={`shrink-0 text-xs px-2 py-1 rounded ${
+                    order.status === 'paid'
+                      ? 'bg-green-100 text-green-600'
+                      : order.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-600'
+                        : order.status === 'refunded'
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-red-100 text-red-600'
+                  }`}
+                >
+                  {order.statusLabel}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-gray-400">{order.createdAt}</p>
+              <p className="mt-2 text-xs text-gray-400">
+                下单时间：{order.createdAt}
+                {order.paidAt ? ` · 支付时间：${order.paidAt}` : ''}
+              </p>
             </div>
           ))}
+        </div>
+      )}
+      {total > 0 && (
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+          <span className="text-sm text-gray-500">共 {total} 条</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              上一页
+            </button>
+            <span className="text-sm text-gray-600">
+              第 {page} / {totalPages} 页
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              下一页
+            </button>
+          </div>
         </div>
       )}
     </div>

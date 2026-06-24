@@ -83,7 +83,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     await logout()
-    window.location.href = '/admin/login'
+    window.location.replace('/')
   }
 
   if (isLoginPage) {

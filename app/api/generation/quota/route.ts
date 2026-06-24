@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getGenerationQuota } from '@/lib/generation-quota'
 import { getDb } from '@/lib/db/index'
 import { requireAuthUser } from '@/lib/require-auth'
+import {
+  ensureSiteSettingsHydrated,
+  isMembershipPurchaseEnabled,
+} from '@/lib/site-settings'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuthUser(request)
@@ -15,8 +19,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await ensureSiteSettingsHydrated(db)
     const quota = await getGenerationQuota(db, auth.user.id)
-    return NextResponse.json({ success: true, quota })
+    return NextResponse.json({
+      success: true,
+      quota,
+      membershipPurchaseEnabled: isMembershipPurchaseEnabled(),
+    })
   } catch (error) {
     console.error('获取额度失败:', error)
     return NextResponse.json({ error: '服务器错误' }, { status: 500 })

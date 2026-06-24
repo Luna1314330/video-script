@@ -67,6 +67,13 @@ export function adminSessionCookieOptions() {
   }
 }
 
+export function clearAdminSessionCookieOptions() {
+  return {
+    ...adminSessionCookieOptions(),
+    maxAge: 0,
+  }
+}
+
 /** HTTP 部署（如 http://IP）须为 false；HTTPS 可 true 或通过 APP_URL=https://... 自动启用 */
 function shouldUseSecureAdminCookie(): boolean {
   if (process.env.ADMIN_COOKIE_SECURE === 'true') return true

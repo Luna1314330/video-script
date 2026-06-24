@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS memberships (
 CREATE TABLE IF NOT EXISTS orders (
   id              CHAR(36) PRIMARY KEY,
   user_id         CHAR(36) NOT NULL,
-  order_no        VARCHAR(64) NOT NULL UNIQUE,
-  amount          DECIMAL(10, 2) NOT NULL,
-  payment_method  VARCHAR(20) NOT NULL,
+  order_no                VARCHAR(64) NOT NULL UNIQUE,
+  amount                  DECIMAL(10, 2) NOT NULL,
+  plan_type               VARCHAR(20) DEFAULT NULL,
+  payment_method          VARCHAR(20) NOT NULL,
+  wechat_transaction_id   VARCHAR(64) DEFAULT NULL,
   status          VARCHAR(20) NOT NULL DEFAULT 'pending',
   paid_at         DATETIME DEFAULT NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -79,7 +81,8 @@ INSERT INTO system_settings (id, value) VALUES
   JSON_OBJECT(
     'free_generations', 1,
     'member_generations', 20,
-    'payment_methods', JSON_OBJECT('wechat', true, 'alipay', false),
+    'payment_methods', JSON_OBJECT('wechat', false, 'alipay', false),
+    'membership_purchase_enabled', false,
     'sms_notification', false,
     'customer_service_wechat', ''
   )

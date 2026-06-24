@@ -54,7 +54,10 @@ export const useAdminStore = create<AdminState>()(
 
       logout: async () => {
         try {
-          await fetch('/api/admin/logout', { method: 'POST' })
+          await fetch('/api/admin/logout', {
+            method: 'POST',
+            credentials: 'include',
+          })
         } catch {
           // 忽略网络错误，本地仍清除状态
         }
@@ -62,6 +65,9 @@ export const useAdminStore = create<AdminState>()(
           isAuthenticated: false,
           admin: null,
         })
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('admin-storage')
+        }
       },
     }),
     {

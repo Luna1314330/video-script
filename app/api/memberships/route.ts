@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
-import { activateUserMembership } from '@/lib/activate-membership'
+import { createPendingMembershipOrder } from '@/lib/orders/membership-order'
+import { getWechatPayStatus } from '@/lib/wechat-pay/config'
 import { getUserMembershipActive } from '@/lib/generation-quota'
 import { getDb } from '@/lib/db/index'
 import { isMembershipActive } from '@/lib/db/tables'
@@ -10,6 +11,7 @@ import {
   ensureSiteSettingsHydrated,
   getSiteSettings,
   isMembershipPlanEnabled,
+  isMembershipPurchaseEnabled,
   toAdminApiPayload,
 } from '@/lib/site-settings'
 
@@ -72,11 +74,22 @@ export async function POST(request: NextRequest) {
 
     await ensureSiteSettingsHydrated(db)
 
+    if (!isMembershipPurchaseEnabled()) {
+      return NextResponse.json(
+        { error: '当前为免费体验期，暂不支持在线购买会员' },
+        { status: 403 },
+      )
+    }
+
     const body = await request.json()
     const { type, payment_method = 'wechat' } = body
 
     if (!isMembershipPlanEnabled(type)) {
       return NextResponse.json({ error: '该会员套餐暂未开放' }, { status: 400 })
+    }
+
+    if (payment_method !== 'wechat') {
+      return NextResponse.json({ error: '当前仅支持微信支付' }, { status: 400 })
     }
 
     const existingRows = await db
@@ -93,11 +106,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '您已有有效会员，无需重复购买' }, { status: 400 })
     }
 
-    const result = await activateUserMembership(db, {
+    const result = await createPendingMembershipOrder(db, {
       userId: auth.user.id,
-      type,
-      source: 'user',
-      paymentMethod: payment_method,
+      planType: type,
+      paymentMethod: 'wechat',
     })
 
     if (!result.success) {
@@ -106,17 +118,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      membership: {
-        id: result.membershipId,
-        status: 'active',
-        plan_type: result.planType,
-        starts_at: result.startsAt,
-        expires_at: result.expiresAt,
-      },
       order: {
         id: result.orderId,
         order_no: result.orderNo,
         amount: result.amount,
+        status: result.status,
+        plan_type: result.planType,
+      },
+      payment: {
+        method: 'wechat',
+        wechatPay: getWechatPayStatus(),
       },
     })
   } catch (error) {

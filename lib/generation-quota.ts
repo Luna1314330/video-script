@@ -6,6 +6,7 @@ import { isMembershipActive } from '@/lib/db/tables'
 import {
   ensureSiteSettingsHydrated,
   getSiteSettings,
+  isMembershipPurchaseEnabled,
 } from '@/lib/site-settings'
 
 export const GENERATION_ACTION_SCRIPT = 'script'
@@ -77,11 +78,14 @@ export async function consumeScriptGenerationQuota(db: AppDb, userId: string) {
   const quota = await getGenerationQuota(db, userId)
 
   if (quota.remaining <= 0) {
+    const purchaseEnabled = isMembershipPurchaseEnabled()
     return {
       success: false as const,
       message: quota.isMember
         ? `今日脚本生成次数已用完（${quota.dailyLimit} 次/天）`
-        : `今日免费生成次数已用完（${quota.dailyLimit} 次/天），开通会员可获得更多额度`,
+        : purchaseEnabled
+          ? `今日免费生成次数已用完（${quota.dailyLimit} 次/天），开通会员可获得更多额度`
+          : `今日免费体验次数已用完（${quota.dailyLimit} 次/天），请明日再试`,
       status: 429,
       quota,
     }

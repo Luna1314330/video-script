@@ -18,6 +18,8 @@ export type SiteSettings = {
   freeGenerations: { daily: number }
   memberGenerations: { daily: number }
   paymentMethods: { wechat: boolean; alipay: boolean }
+  /** 是否开放用户自助购买会员（前期推广可关闭，仅走免费额度） */
+  membershipPurchaseEnabled: boolean
   smsNotification: boolean
   /** 会员专属客服微信号 */
   customerServiceWechat: string
@@ -29,6 +31,7 @@ export type AdminSettingsPayload = {
     free_generations?: number
     member_generations?: number
     payment_methods?: SiteSettings['paymentMethods']
+    membership_purchase_enabled?: boolean
     sms_notification?: boolean
     customer_service_wechat?: string
   }
@@ -43,9 +46,9 @@ export type HydrateSiteSettingsResult = {
 /** 当前暂未开放的套餐（后台开关不可点击） */
 export const LOCKED_OFF_PLANS = ['quarterly', 'yearly'] as const
 
-/** 当前暂未开放的支付方式 */
+/** 当前暂未开放的支付方式（会员购买关闭时不强制微信支付） */
 export const PAYMENT_LOCKS = {
-  wechatRequired: true,
+  wechatRequiredWhenPurchaseOpen: true,
   alipayLockedOff: true,
 } as const
 
@@ -78,6 +81,7 @@ export const INITIAL_SITE_SETTINGS: SiteSettings = {
   freeGenerations: { daily: 1 },
   memberGenerations: { daily: 20 },
   paymentMethods: { wechat: true, alipay: false },
+  membershipPurchaseEnabled: false,
   smsNotification: false,
   customerServiceWechat: '',
 }
@@ -95,8 +99,12 @@ export function applyPolicyLocks(settings: SiteSettings): SiteSettings {
     next.membership[plan].enabled = false
   }
 
-  if (PAYMENT_LOCKS.wechatRequired) {
+  if (PAYMENT_LOCKS.wechatRequiredWhenPurchaseOpen && next.membershipPurchaseEnabled) {
     next.paymentMethods.wechat = true
+  }
+  if (!next.membershipPurchaseEnabled) {
+    next.paymentMethods.wechat = false
+    next.paymentMethods.alipay = false
   }
   if (PAYMENT_LOCKS.alipayLockedOff) {
     next.paymentMethods.alipay = false
@@ -139,6 +147,9 @@ function siteSettingsFromDbRows(rows: Array<{ id: string; value: unknown }>): Si
       ...INITIAL_SITE_SETTINGS.paymentMethods,
       ...site?.payment_methods,
     },
+    membershipPurchaseEnabled:
+      site?.membership_purchase_enabled ??
+      INITIAL_SITE_SETTINGS.membershipPurchaseEnabled,
     smsNotification: site?.sms_notification ?? INITIAL_SITE_SETTINGS.smsNotification,
     customerServiceWechat:
       typeof site?.customer_service_wechat === 'string'
@@ -163,6 +174,7 @@ function siteSettingsToDbRows(settings: SiteSettings) {
         free_generations: locked.freeGenerations.daily,
         member_generations: locked.memberGenerations.daily,
         payment_methods: locked.paymentMethods,
+        membership_purchase_enabled: locked.membershipPurchaseEnabled,
         sms_notification: locked.smsNotification,
         customer_service_wechat: locked.customerServiceWechat,
       },
@@ -268,6 +280,7 @@ export function toAdminApiPayload(settings: SiteSettings = runtimeSettings) {
       free_generations: settings.freeGenerations.daily,
       member_generations: settings.memberGenerations.daily,
       payment_methods: settings.paymentMethods,
+      membership_purchase_enabled: settings.membershipPurchaseEnabled,
       sms_notification: settings.smsNotification,
       customer_service_wechat: settings.customerServiceWechat,
     },
@@ -303,6 +316,9 @@ export function updateSiteSettingsFromAdmin(payload: AdminSettingsPayload): Site
       ...current.paymentMethods,
       ...payload.site_settings?.payment_methods,
     },
+    membershipPurchaseEnabled:
+      payload.site_settings?.membership_purchase_enabled ??
+      current.membershipPurchaseEnabled,
     smsNotification:
       payload.site_settings?.sms_notification ?? current.smsNotification,
     customerServiceWechat:
@@ -339,12 +355,17 @@ export function getEnabledMembershipPlans() {
     }))
 }
 
+export function isMembershipPurchaseEnabled(): boolean {
+  return runtimeSettings.membershipPurchaseEnabled
+}
+
 export function siteSettingsToUiState(settings: SiteSettings = runtimeSettings) {
   return {
     membership: settings.membership,
     freeGenerations: settings.freeGenerations,
     memberGenerations: settings.memberGenerations,
     paymentMethods: settings.paymentMethods,
+    membershipPurchaseEnabled: settings.membershipPurchaseEnabled,
     smsNotification: settings.smsNotification,
     customerServiceWechat: settings.customerServiceWechat,
   }

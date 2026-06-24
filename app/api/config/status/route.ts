@@ -1,5 +1,6 @@
 import { getCozeConfigFromEnv } from '@/lib/coze/config'
 import { isDbConfigured } from '@/lib/db/index'
+import { getWechatPayStatus } from '@/lib/wechat-pay/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,7 @@ export async function GET() {
   const config = getCozeConfigFromEnv()
   const dbConfigured = isDbConfigured()
   const jwtConfigured = Boolean(process.env.JWT_SECRET?.trim())
+  const wechatPay = getWechatPayStatus()
 
   return Response.json({
     ok: Boolean(
@@ -24,6 +26,12 @@ export async function GET() {
       COZE_WORKFLOW_SCRIPT: Boolean(config.workflowIds.script),
       DATABASE_URL: dbConfigured,
       JWT_SECRET: jwtConfigured,
+      WECHAT_PAY_CONFIGURED: wechatPay.configured,
+      WECHAT_PAY_MOCK: wechatPay.mock,
+      WECHAT_PAY_READY: wechatPay.ready,
+    },
+    wechatPay: {
+      notifyUrl: wechatPay.notifyUrl,
     },
   })
 }

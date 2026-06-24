@@ -56,6 +56,15 @@ describe('ProfileClient', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(fetchCurrentUser).mockResolvedValue(freeUser)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ success: true, membershipPurchaseEnabled: false }),
+          { status: 200 },
+        ),
+      ),
+    )
   })
 
   it('渲染个人中心基础菜单', async () => {
@@ -64,7 +73,7 @@ describe('ProfileClient', () => {
     expect(screen.getByText('个人中心')).toBeInTheDocument()
     expect(screen.getAllByText('用户信息').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('历史脚本')).toBeInTheDocument()
-    expect(screen.getByText('订单信息')).toBeInTheDocument()
+    expect(screen.queryByText('订单信息')).not.toBeInTheDocument()
     expect(screen.getByText('修改密码')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '← 返回首页' })).toHaveAttribute('href', '/')
   })

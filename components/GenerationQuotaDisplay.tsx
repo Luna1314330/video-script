@@ -85,7 +85,7 @@ export function GenerationQuotaDisplay({
         <div>
           <p className="text-sm font-medium text-gray-900">今日生成额度</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            {quota?.isMember ? '会员每日额度' : '非会员每日免费额度'}
+            {quota?.isMember ? '会员每日额度' : '登录用户每日免费体验额度'}
           </p>
         </div>
         {loading && !quota ? (
@@ -105,9 +105,16 @@ export function GenerationQuotaDisplay({
       </div>
       {quota && quota.remaining === 0 && (
         <p className="text-xs text-amber-700 mt-3">
-          今日{quota.isMember ? '会员' : '免费'}次数已用完，
-          <MembershipLink underline className="text-amber-700" />
-          {!quota.isMember && ' 可获得更多额度'}
+          今日{quota.isMember ? '会员' : '免费体验'}次数已用完。
+          {quota.membershipPurchaseEnabled ? (
+            <>
+              {' '}
+              <MembershipLink underline className="text-amber-700" />
+              {!quota.isMember && ' 可获得更多额度'}
+            </>
+          ) : (
+            ' 请明日再试'
+          )}
         </p>
       )}
     </div>

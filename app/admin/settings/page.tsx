@@ -54,6 +54,8 @@ export default function SettingsPage() {
           },
           smsNotification: payload.site_settings?.sms_notification ?? false,
           customerServiceWechat: payload.site_settings?.customer_service_wechat ?? '',
+          membershipPurchaseEnabled:
+            payload.site_settings?.membership_purchase_enabled ?? false,
         })
       }
     } catch (error) {
@@ -145,8 +147,15 @@ export default function SettingsPage() {
     }
   }
 
+  const handleMembershipPurchaseEnabledChange = (enabled: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      membershipPurchaseEnabled: enabled,
+    }))
+  }
+
   const handlePaymentMethodChange = (method: 'wechat' | 'alipay', enabled: boolean) => {
-    if (method === 'wechat' && PAYMENT_LOCKS.wechatRequired) return
+    if (method === 'wechat' && PAYMENT_LOCKS.wechatRequiredWhenPurchaseOpen) return
     if (method === 'alipay' && PAYMENT_LOCKS.alipayLockedOff) return
     setSettings((prev) => ({
       ...prev,
@@ -183,6 +192,7 @@ export default function SettingsPage() {
           payment_methods: settings.paymentMethods,
           sms_notification: settings.smsNotification,
           customer_service_wechat: settings.customerServiceWechat?.trim() ?? '',
+          membership_purchase_enabled: settings.membershipPurchaseEnabled ?? false,
         },
       }
       
@@ -240,6 +250,59 @@ export default function SettingsPage() {
           )}
         </Button>
       </div>
+
+      {/* Generation Quota */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">免费体验额度</CardTitle>
+          <CardDescription>
+            推广期用户登录后，每日可免费生成脚本的次数（按自然日重置）
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium whitespace-nowrap w-28">每日免费</label>
+            <Input
+              type="number"
+              min="0"
+              value={settings.freeGenerations?.daily ?? 1}
+              onChange={(e) => handleFreeGenerationsChange(e.target.value)}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground">次/天（登录用户）</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium whitespace-nowrap w-28">会员每日</label>
+            <Input
+              type="number"
+              min="0"
+              value={settings.memberGenerations?.daily ?? 20}
+              onChange={(e) => handleMemberGenerationsChange(e.target.value)}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground">次/天（有效会员，后台手动开通）</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Promo / Purchase */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">会员购买</CardTitle>
+          <CardDescription>
+            关闭时用户仅可使用免费体验额度；开启后显示购买页并允许在线下单
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">开放用户在线购买会员</span>
+            <Switch
+              checked={settings.membershipPurchaseEnabled ?? false}
+              onCheckedChange={handleMembershipPurchaseEnabledChange}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Membership Pricing */}
       <Card>
@@ -391,39 +454,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Generation Quota */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">生成次数配置</CardTitle>
-          <CardDescription>设置非会员与会员用户的每日脚本生成次数</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium whitespace-nowrap w-28">非会员每日</label>
-            <Input
-              type="number"
-              min="0"
-              value={settings.freeGenerations?.daily ?? 1}
-              onChange={(e) => handleFreeGenerationsChange(e.target.value)}
-              className="w-32"
-            />
-            <span className="text-sm text-muted-foreground">次/天（免费额度）</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium whitespace-nowrap w-28">会员每日</label>
-            <Input
-              type="number"
-              min="0"
-              value={settings.memberGenerations?.daily ?? 20}
-              onChange={(e) => handleMemberGenerationsChange(e.target.value)}
-              className="w-32"
-            />
-            <span className="text-sm text-muted-foreground">次/天（有效会员）</span>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Payment Methods */}
+      {settings.membershipPurchaseEnabled && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">支付方式配置</CardTitle>
@@ -436,7 +468,7 @@ export default function SettingsPage() {
             </div>
             <Switch
               checked={settings.paymentMethods?.wechat ?? true}
-              disabled={PAYMENT_LOCKS.wechatRequired}
+              disabled={PAYMENT_LOCKS.wechatRequiredWhenPurchaseOpen}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -450,6 +482,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Customer Service */}
       <Card>

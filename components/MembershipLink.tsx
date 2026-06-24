@@ -14,18 +14,24 @@ type MembershipLinkProps = {
 
 export function MembershipLink({ className, underline }: MembershipLinkProps) {
   const [label, setLabel] = useState('开通会员')
+  const [visible, setVisible] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!isLoggedIn()) {
-      setLabel('开通会员')
+      setVisible(false)
       return
     }
 
     try {
       const quota = await fetchGenerationQuota()
+      if (!quota.membershipPurchaseEnabled) {
+        setVisible(false)
+        return
+      }
+      setVisible(true)
       setLabel(getMembershipActionLabel(quota.isMember))
     } catch {
-      setLabel('开通会员')
+      setVisible(false)
     }
   }, [])
 
@@ -35,9 +41,11 @@ export function MembershipLink({ className, underline }: MembershipLinkProps) {
     return () => window.removeEventListener('quota-updated', refresh)
   }, [refresh])
 
+  if (!visible) return null
+
   return (
     <Link
-      href="/membership"
+      href="/membership/purchase"
       className={cn(underline && 'underline underline-offset-2', className)}
     >
       {label}

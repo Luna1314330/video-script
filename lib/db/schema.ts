@@ -51,7 +51,9 @@ export const orders = mysqlTable(
     userId: char('user_id', { length: 36 }).notNull(),
     orderNo: varchar('order_no', { length: 64 }).notNull().unique(),
     amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+    planType: varchar('plan_type', { length: 20 }),
     paymentMethod: varchar('payment_method', { length: 20 }).notNull(),
+    wechatTransactionId: varchar('wechat_transaction_id', { length: 64 }),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     paidAt: datetime('paid_at', { mode: 'string' }),
     createdAt: datetime('created_at', { mode: 'string' })

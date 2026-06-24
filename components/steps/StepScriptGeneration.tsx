@@ -233,7 +233,7 @@ export function StepScriptGeneration() {
 
       {quota && (
         <p className="text-xs text-muted-foreground mb-4">
-          {quota.isMember ? '会员' : '免费'}额度：今日剩余 {quota.remaining} / {quota.dailyLimit} 次
+          {quota.isMember ? '会员' : '免费体验'}额度：今日剩余 {quota.remaining} / {quota.dailyLimit} 次
         </p>
       )}
 
@@ -247,11 +247,13 @@ export function StepScriptGeneration() {
                 ? error
                 : '今日脚本生成次数已用完，请明天再试'}
           </p>
-          <Button asChild variant="outline" className="border-amber-300">
-            <Link href="/membership">
-              {quota ? getMembershipActionLabel(quota.isMember) : '开通会员'}
-            </Link>
-          </Button>
+          {quota?.membershipPurchaseEnabled && (
+            <Button asChild variant="outline" className="border-amber-300">
+              <Link href="/membership/purchase">
+                {quota ? getMembershipActionLabel(quota.isMember) : '开通会员'}
+              </Link>
+            </Button>
+          )}
         </div>
       )}
 
